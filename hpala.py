@@ -1,4 +1,5 @@
 import random
+import statistics
 
 mana_pool = 10000
 crit = 22.25
@@ -58,4 +59,11 @@ def simulation(mana_pool, mp5, crit):
 		t += fol_cast
 	return t
 
-print('Time to OOM: ' + str(simulation(mana_pool, mp5, crit)))
+
+sims = []
+for i in range(50):
+	sims.append(simulation(mana_pool, mp5, crit))
+
+print('TTO min: ' + str(min(sims)))
+print('TTO max: ' + str(max(sims)))
+print('TTO mode: ' + str(statistics.median(sims)))
