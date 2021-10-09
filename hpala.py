@@ -20,10 +20,13 @@ def mana_pot_alch():
 def spell_crit(crit_percentage):
 	return random.random() < crit_percentage
 
-def simulation(activity, mana_pool, mp5, crit):
+def simulation(activity, ratio, mana_pool, mp5, base_crit):
 	t = 0.0
+
 	fol_mana = 180
 	fol_cast = 1.5
+	hl_mana = 840
+	hl_cast = 2.5
 
 	mana_tick = 2
 	mp2 = mp5 / 5 * 2
@@ -38,6 +41,11 @@ def simulation(activity, mana_pool, mp5, crit):
 	rune_last_use = rune_delay - rune_cd
 
 	illu = 0.6
+	
+	favor = 0
+	favor_cd = 120
+	favor_delay = 30
+	favor_last_use = favor_delay - favor_cd
 
 	while mana_pool >= fol_mana and t < 600:
 		while last_tick < t:
@@ -51,20 +59,38 @@ def simulation(activity, mana_pool, mp5, crit):
 			mana_pool += mana_rune()
 			rune_last_use = t
 
-		mana_pool -= fol_mana
+
+		if random.random() < ratio:
+			crit = base_crit
+			spell_mana = fol_mana
+			spell_cast = fol_cast
+		else:
+			crit = base_crit + 0.06
+			spell_mana = hl_mana
+			spell_cast = hl_cast
+
+		if t > favor_delay and (favor_last_use + favor_cd) <= t:
+			favor = 1
+			crit = 1.0
+
+		mana_pool -= spell_mana
 	
 		if spell_crit(crit):
-			mana_pool += fol_mana * illu
+			mana_pool += spell_mana * illu
 
-		t += fol_cast
+		t += spell_cast
+		if favor == 1:
+			favor = 0
+			favor_last_use = t
 		# adds delay based on y = -(x-1) / x
-		t += -(activity - 1) / activity * fol_cast
+		t += -(activity - 1) / activity * spell_cast
+
 	return t
 
 
 sims = []
 for i in range(50):
-	sims.append(simulation(0.9, mana_pool, mp5, crit))
+	sims.append(simulation(0.8, 0.93, mana_pool, mp5, crit))
 
 print('TTO min: ' + str(round(min(sims))))
 print('TTO max: ' + str(round(max(sims))))
