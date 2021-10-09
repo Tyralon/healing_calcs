@@ -28,6 +28,9 @@ def simulation(activity, ratio, mana_pool, mp5, base_crit):
 	hl_mana = 840
 	hl_cast = 2.5
 
+	grace_effect = 0.5
+	grace_duration = 15
+
 	mana_tick = 2
 	mp2 = mp5 / 5 * 2
 	last_tick = t
@@ -46,6 +49,11 @@ def simulation(activity, ratio, mana_pool, mp5, base_crit):
 	favor_cd = 120
 	favor_delay = 30
 	favor_last_use = favor_delay - favor_cd
+
+	div_illu_duration = 15
+	div_illu_cd = 180
+	div_illu_delay = 30
+	div_illu_last_use = div_illu_delay - div_illu_cd
 
 	while mana_pool >= fol_mana and t < 600:
 		while last_tick < t:
@@ -73,15 +81,22 @@ def simulation(activity, ratio, mana_pool, mp5, base_crit):
 			favor = 1
 			crit = 1.0
 
-		mana_pool -= spell_mana
-	
+		if t > div_illu_delay and (div_illu_last_use + div_illu_cd) <= t:
+			div_illu_last_use = t
+
+		t += spell_cast
+		if (div_illu_last_use + div_illu_duration) >= t:
+			mana_pool -= spell_mana / 2
+		else:
+			mana_pool -= spell_mana
+
 		if spell_crit(crit):
 			mana_pool += spell_mana * illu
 
-		t += spell_cast
 		if favor == 1:
 			favor = 0
 			favor_last_use = t
+
 		# adds delay based on y = -(x-1) / x
 		t += -(activity - 1) / activity * spell_cast
 
