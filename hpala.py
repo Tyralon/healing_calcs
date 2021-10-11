@@ -4,6 +4,19 @@ import statistics
 mana_pool = 10000
 crit = 0.2225
 mp5 = 88
+healing = 1900
+
+def heal(lower, upper, cast, healing, critted):
+	if critted:
+		return random.randint(lower, upper) * 1.5 + (healing * cast / 3.5)
+	else:
+		return random.randint(lower, upper) + (healing * cast / 3.5)
+
+def flash_of_light(healing, critted):
+	return heal(458, 513, 1.5, healing, critted)
+
+def holy_light(healing, critted):
+	return heal(2196, 2446, 2.5, healing, critted)
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -22,6 +35,7 @@ def spell_crit(crit_percentage):
 
 def simulation(activity, ratio, mana_pool, mp5, base_crit):
 	t = 0.0
+	healed = 0
 
 	fol_mana = 180
 	fol_cast = 1.5
@@ -57,6 +71,7 @@ def simulation(activity, ratio, mana_pool, mp5, base_crit):
 	div_illu_delay = 30
 	div_illu_last_use = div_illu_delay - div_illu_cd
 
+	# limit encounters to 600s (10min)
 	while mana_pool >= fol_mana and t < 600:
 		while last_tick < t:
 			last_tick += mana_tick
@@ -99,6 +114,18 @@ def simulation(activity, ratio, mana_pool, mp5, base_crit):
 
 		if spell_crit(crit):
 			mana_pool += spell_mana * illu
+			if spell_mana == 180:
+				healed += flash_of_light(healing, True)
+			if spell_mana == 840:
+				healed += holy_light(healing, True)
+		else:
+			if spell_mana == 180:
+				healed += flash_of_light(healing, False)
+			if spell_mana == 840:
+				healed += holy_light(healing, False)
+
+				
+
 
 		if favor == 1:
 			favor = 0
@@ -111,13 +138,32 @@ def simulation(activity, ratio, mana_pool, mp5, base_crit):
 		# adds delay based on y = -(x-1) / x
 		t += -(activity - 1) / activity * spell_cast
 
-	return t
+	return (t, healed)
 
 
-sims = []
+tto = []
+healList = []
 for i in range(50):
-	sims.append(simulation(0.8, 0.93, mana_pool, mp5, crit))
+	sim = simulation(0.8, 0.93, mana_pool, mp5, crit)
+	tto.append(sim[0])
+	healList.append(sim[1])
 
-print('TTO min: ' + str(round(min(sims))))
-print('TTO max: ' + str(round(max(sims))))
-print('TTO mode: ' + str(round(statistics.median(sims))))
+tto_min = min(tto)
+tto_max = max(tto)
+tto_mode = statistics.median(tto)
+heal_min = min(healList)
+heal_max = max(healList)
+heal_mode = statistics.median(healList)
+hps_min = heal_min / tto_min
+hps_max = heal_max / tto_max
+hps_mode = heal_mode / tto_mode
+
+print('TTO min: ' + str(round(tto_min)))
+print('HPS min: ' + str(round(hps_min)))
+print('healng min: ' + str(round(heal_min)) + '\n')
+print('TTO max: ' + str(round(tto_max)))
+print('HPS max: ' + str(round(hps_max)))
+print('healing max: ' + str(round(heal_max)) + '\n')
+print('TTO mode: ' + str(round(tto_mode)))
+print('HPS mode: ' + str(round(hps_mode)))
+print('healing mode: ' + str(round(heal_mode)) + '\n')
