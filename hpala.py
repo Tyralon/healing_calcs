@@ -148,18 +148,11 @@ def simulation():
 		tto.append(sim[0])
 		healList.append(sim[1])
 
-	tto_min = min(tto)
-	tto_max = max(tto)
 	tto_median = statistics.median(tto)
-	heal_min = min(healList)
-	heal_max = max(healList)
 	heal_median = statistics.median(healList)
-	hps_min = heal_min / tto_min
-	hps_max = heal_max / tto_max
 	hps_median = heal_median / tto_median
-	
-	print('TTO median: ' + str(round(tto_median)))
-	print('HPS median: ' + str(round(hps_median)))
-	print('healing median: ' + str(round(heal_median)) + '\n')
 
+	return [tto_median, hps_median, heal_median]
 
+for i in simulation():
+	print(str(round(i)))
