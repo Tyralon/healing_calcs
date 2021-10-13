@@ -33,7 +33,7 @@ def mana_pot_alch():
 def spell_crit(crit_percentage):
 	return random.random() < crit_percentage
 
-def simulation(activity, ratio, mana_pool, mp5, base_crit):
+def encounter(activity, ratio, mana_pool, mp5, base_crit):
 	t = 0.0
 	healed = 0
 
@@ -140,30 +140,26 @@ def simulation(activity, ratio, mana_pool, mp5, base_crit):
 
 	return (t, healed)
 
+def simulation():
+	tto = []
+	healList = []
+	for i in range(1000):
+		sim = encounter(0.8, 0.93, mana_pool, mp5, crit)
+		tto.append(sim[0])
+		healList.append(sim[1])
 
-tto = []
-healList = []
-for i in range(50):
-	sim = simulation(0.8, 0.93, mana_pool, mp5, crit)
-	tto.append(sim[0])
-	healList.append(sim[1])
+	tto_min = min(tto)
+	tto_max = max(tto)
+	tto_median = statistics.median(tto)
+	heal_min = min(healList)
+	heal_max = max(healList)
+	heal_median = statistics.median(healList)
+	hps_min = heal_min / tto_min
+	hps_max = heal_max / tto_max
+	hps_median = heal_median / tto_median
+	
+	print('TTO median: ' + str(round(tto_median)))
+	print('HPS median: ' + str(round(hps_median)))
+	print('healing median: ' + str(round(heal_median)) + '\n')
 
-tto_min = min(tto)
-tto_max = max(tto)
-tto_mode = statistics.median(tto)
-heal_min = min(healList)
-heal_max = max(healList)
-heal_mode = statistics.median(healList)
-hps_min = heal_min / tto_min
-hps_max = heal_max / tto_max
-hps_mode = heal_mode / tto_mode
 
-print('TTO min: ' + str(round(tto_min)))
-print('HPS min: ' + str(round(hps_min)))
-print('healng min: ' + str(round(heal_min)) + '\n')
-print('TTO max: ' + str(round(tto_max)))
-print('HPS max: ' + str(round(hps_max)))
-print('healing max: ' + str(round(heal_max)) + '\n')
-print('TTO mode: ' + str(round(tto_mode)))
-print('HPS mode: ' + str(round(hps_mode)))
-print('healing mode: ' + str(round(heal_mode)) + '\n')
