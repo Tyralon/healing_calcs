@@ -1,10 +1,7 @@
 import random
 import statistics
+import numpy as np
 
-mana_pool = 10000
-crit = 0.2225
-mp5 = 88
-healing = 1900
 
 def heal(lower, upper, cast, healing, critted):
 	if critted:
@@ -33,7 +30,7 @@ def mana_pot_alch():
 def spell_crit(crit_percentage):
 	return random.random() < crit_percentage
 
-def encounter(activity, ratio, mana_pool, mp5, base_crit):
+def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 	t = 0.0
 	healed = 0
 
@@ -140,11 +137,11 @@ def encounter(activity, ratio, mana_pool, mp5, base_crit):
 
 	return (t, healed)
 
-def simulation():
+def simulation(activity, ratio, mana_pool, healing, mp5, crit):
 	tto = []
 	healList = []
-	for i in range(1000):
-		sim = encounter(0.8, 0.93, mana_pool, mp5, crit)
+	for i in range(10000):
+		sim = encounter(activity, ratio, mana_pool, healing, mp5, crit)
 		tto.append(sim[0])
 		healList.append(sim[1])
 
@@ -154,5 +151,52 @@ def simulation():
 
 	return [tto_median, hps_median, heal_median]
 
-for i in simulation():
-	print(str(round(i)))
+def gathering_results():
+	activity = 0.8
+	ratio = 0.93
+	mana_pool = 10000
+	crit = 0.2225
+	crit_step = 0.0018
+	mp5 = 88
+	mp5_step = 15
+	healing = 1900
+	healing_step = 90
+
+	steps = 60
+	a_tto = np.zeros([steps, steps, steps], float)
+	a_hld = np.zeros([steps, steps, steps], float)
+	counter = 0
+	for i in range(1):
+		for j in range(1):
+			for k in range(steps):
+				a = simulation(activity, ratio, mana_pool, healing + i * healing_step, mp5 + j * mp5_step, crit + k * crit_step)
+				a_tto[i, j, k] = a[0]
+				a_hld[i, j, k] = a[2]
+				counter += 1
+	print(counter)
+	print("TTO")
+	print("increased healing")
+	for i in range(steps - 1):
+		print(str(a_tto[i+1, 0, 0] - a_tto[i, 0, 0]))
+	print("increased mp5")
+	for i in range(steps - 1):
+		print(str(a_tto[0, i+1, 0] - a_tto[0, i, 0]))
+	print("increased crit")
+	for i in range(steps - 1):
+		print(str(a_tto[0, 0, i+1] - a_tto[0, 0, i]))
+	print("healed")
+	print("increased healing")
+	for i in range(steps - 1):
+		print(str(a_hld[i+1, 0, 0] - a_hld[i, 0, 0]))
+	print("increased mp5")
+	for i in range(steps - 1):
+		print(str(a_hld[0, i+1, 0] - a_hld[0, i, 0]))
+	print("increased crit")
+	for i in range(steps - 1):
+		print(str(a_hld[0, 0, i+1] - a_hld[0, 0, i]))
+
+
+#for i in simulation():
+#	print(str(round(i)))
+gathering_results()
+print("done")
