@@ -31,12 +31,14 @@ def spell_crit(crit_percentage):
 	return random.random() < crit_percentage
 
 def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
+	assert sum(ratio) == 100
 	t = 0.0
 	healed = 0
 
 	fol_mana = 180
 	fol_cast = 1.5
-	hl_mana = 840
+	hl9_mana = 660
+	hl11_mana = 840
 	hl_cast = 2.5
 
 	grace = 0
@@ -67,6 +69,9 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 	div_illu_cd = 180
 	div_illu_delay = 30
 	div_illu_last_use = div_illu_delay - div_illu_cd
+	
+	fol_ratio = ratio[0] / 100
+	hl9_ratio = fol_ratio + ratio[1] / 100
 
 	limit = 420
 	# limit encounters to 420s (7 mins)
@@ -83,14 +88,23 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 		if t > rune_delay and (rune_last_use + rune_cd) <= t:
 			mana_pool += mana_rune()
 			rune_last_use = t
-
-		if random.random() < ratio:
+		
+		rvar = random.random()
+		if rvar < fol_ratio:
 			crit = base_crit
 			spell_mana = fol_mana
 			spell_cast = fol_cast
+		elif rvar < hl9_ratio:
+			crit = base_crit + 0.06
+			spell_mana = hl9_mana
+			if (grace_last_use + grace_duration) >= t:
+				spell_cast = hl_cast - grace_effect
+			else:
+				spell_cast = hl_cast
+			grace = 1
 		else:
 			crit = base_crit + 0.06
-			spell_mana = hl_mana
+			spell_mana = hl11_mana
 			if (grace_last_use + grace_duration) >= t:
 				spell_cast = hl_cast - grace_effect
 			else:
@@ -115,11 +129,15 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 			mana_pool += spell_mana * illu
 			if spell_mana == 180:
 				healed += flash_of_light(healing, True)
+			if spell_mana == 660:
+				healed += holy_light(healing, True)
 			if spell_mana == 840:
 				healed += holy_light(healing, True)
 		else:
 			if spell_mana == 180:
 				healed += flash_of_light(healing, False)
+			if spell_mana == 660:
+				healed += holy_light(healing, False)
 			if spell_mana == 840:
 				healed += holy_light(healing, False)
 
@@ -156,9 +174,9 @@ def simulation(runs, activity, ratio, mana_pool, healing, mp5, crit):
 	return [tto_median, heal_median, hps_median, over_limit / runs]
 
 def gathering_results():
-	runs = 100
-	activity = 0.8
-	ratio = 0.93
+	runs = 5000
+	activity = 0.9
+	ratio = [75, 20, 5]
 	mana_pool = 11000
 	crit = 0.1900
 	crit_step = 0.0036
