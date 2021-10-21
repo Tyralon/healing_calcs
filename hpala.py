@@ -68,8 +68,11 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 	div_illu_delay = 30
 	div_illu_last_use = div_illu_delay - div_illu_cd
 
-	# limit encounters to 600s (10min)
-	while mana_pool >= fol_mana and t < 600:
+	limit = 420
+	# limit encounters to 420s (7 mins)
+	limit_reached = False
+
+	while mana_pool >= fol_mana and not limit_reached:
 		while last_tick < t:
 			last_tick += mana_tick
 			mana_pool += mp2
@@ -80,7 +83,6 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 		if t > rune_delay and (rune_last_use + rune_cd) <= t:
 			mana_pool += mana_rune()
 			rune_last_use = t
-
 
 		if random.random() < ratio:
 			crit = base_crit
@@ -121,9 +123,6 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 			if spell_mana == 840:
 				healed += holy_light(healing, False)
 
-				
-
-
 		if favor == 1:
 			favor = 0
 			favor_last_use = t
@@ -134,69 +133,71 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 
 		# adds delay based on y = -(x-1) / x
 		t += -(activity - 1) / activity * spell_cast
+		if t >= limit:
+			limit_reached = True
+#			print("Limit reached! - Mana left: " + str(round(mana_pool)))
+	return (t, healed, limit_reached)
 
-	return (t, healed)
-
-def simulation(activity, ratio, mana_pool, healing, mp5, crit):
+def simulation(runs, activity, ratio, mana_pool, healing, mp5, crit):
 	tto = []
 	healList = []
-	for i in range(10000):
+	over_limit = 0
+	for i in range(runs):
 		sim = encounter(activity, ratio, mana_pool, healing, mp5, crit)
 		tto.append(sim[0])
 		healList.append(sim[1])
+		if sim[2]:
+			over_limit += 1
 
 	tto_median = statistics.median(tto)
 	heal_median = statistics.median(healList)
 	hps_median = heal_median / tto_median
 
-	return [tto_median, hps_median, heal_median]
+	return [tto_median, heal_median, hps_median, over_limit / runs]
 
 def gathering_results():
+	runs = 100
 	activity = 0.8
 	ratio = 0.93
-	mana_pool = 10000
-	crit = 0.2225
-	crit_step = 0.0018
-	mp5 = 88
-	mp5_step = 15
+	mana_pool = 11000
+	crit = 0.1900
+	crit_step = 0.0036
+	mp5 = 150
+	mp5_step = 3
 	healing = 1900
-	healing_step = 90
+	healing_step = 18
 
-	steps = 60
-	a_tto = np.zeros([steps, steps, steps], float)
-	a_hld = np.zeros([steps, steps, steps], float)
-	counter = 0
-	for i in range(1):
-		for j in range(1):
-			for k in range(steps):
-				a = simulation(activity, ratio, mana_pool, healing + i * healing_step, mp5 + j * mp5_step, crit + k * crit_step)
-				a_tto[i, j, k] = a[0]
-				a_hld[i, j, k] = a[2]
-				counter += 1
-	print(counter)
-	print("TTO")
-	print("increased healing")
-	for i in range(steps - 1):
-		print(str(a_tto[i+1, 0, 0] - a_tto[i, 0, 0]))
-	print("increased mp5")
-	for i in range(steps - 1):
-		print(str(a_tto[0, i+1, 0] - a_tto[0, i, 0]))
-	print("increased crit")
-	for i in range(steps - 1):
-		print(str(a_tto[0, 0, i+1] - a_tto[0, 0, i]))
-	print("healed")
-	print("increased healing")
-	for i in range(steps - 1):
-		print(str(a_hld[i+1, 0, 0] - a_hld[i, 0, 0]))
-	print("increased mp5")
-	for i in range(steps - 1):
-		print(str(a_hld[0, i+1, 0] - a_hld[0, i, 0]))
-	print("increased crit")
-	for i in range(steps - 1):
-		print(str(a_hld[0, 0, i+1] - a_hld[0, 0, i]))
+	steps = 15
+	a_tto = np.zeros([3, steps, 2], float)
+	a_hld = np.zeros([3, steps, 2], float)
+	a_hps = np.zeros([3, steps, 2], float)
+	for i in range(steps):
+		a = simulation(runs, activity, ratio, mana_pool, healing + i * healing_step, mp5, crit)
+		a_tto[0, i, 0] = a[0]
+		a_tto[0, i, 1] = a[3]
+		a_hld[0, i, 0] = a[1]
+		a_hld[0, i, 1] = a[3]
+		a_hps[0, i, 0] = a[2]
+		a_hps[0, i, 1] = a[3]
+	for j in range(steps):
+		a = simulation(runs, activity, ratio, mana_pool, healing, mp5 + j * mp5_step, crit)
+		a_tto[1, j, 0] = a[0]
+		a_tto[1, j, 1] = a[3]
+		a_hld[1, j, 0] = a[1]
+		a_hld[1, j, 1] = a[3]
+		a_hps[1, j, 0] = a[2]
+		a_hps[1, j, 1] = a[3]
+	for k in range(steps):
+		a = simulation(runs, activity, ratio, mana_pool, healing, mp5, crit + k * crit_step)
+		a_tto[2, k, 0] = a[0]
+		a_tto[2, k, 1] = a[3]
+		a_hld[2, k, 0] = a[1]
+		a_hld[2, k, 1] = a[3]
+		a_hps[2, k, 0] = a[2]
+		a_hps[2, k, 1] = a[3]
+	np.save("tto_15_steps_10000_iter", a_tto)
+	np.save("hld_15_steps_10000_iter", a_hld)
+	np.save("hps_15_steps_10000_iter", a_hps)
 
-
-#for i in simulation():
-#	print(str(round(i)))
 gathering_results()
-print("done")
+
