@@ -2,23 +2,22 @@ import random
 import statistics
 import numpy as np
 
+def ana_helper(arr, steps):
+	x = np.arange(0, steps)
+	for i in range(steps):
+		print(str(round(arr[i, 0], 2)) + ", " + str(round(arr[i, 1] * 100)) + "% ")
+	z = np.polyfit(x, arr[:,0], 1)
+	print("OLS: " + str(round(z[0], 2)))
+
+
 def analysis(arr, steps):
-    print("\nincreased healing")
-    x = np.arange(0, steps)
-    for i in range(steps):
-        print(str(round(arr[0, i, 0], 2)) + ", " + str(round(arr[0, i, 1] * 100)) + "% ")
-    z = np.polyfit(x, arr[0][:,0], 1)
-    print("OLS: " + str(round(z[0], 2)))
-    print("\nincreased mp5")
-    for i in range(steps):
-        print(str(round(arr[1, i, 0], 2)) + ", " + str(round(arr[1, i, 1] * 100)) + "% ")
-    z = np.polyfit(x, arr[1][:,0], 1)
-    print("OLS: " + str(round(z[0], 2)))
-    print("\nincreased crit")
-    for i in range(steps):
-        print(str(round(arr[2, i, 0], 2)) + ", " + str(round(arr[2, i, 1] * 100)) + "% ")
-    z = np.polyfit(x, arr[2][:,0], 1)
-    print("OLS: " + str(round(z[0], 2)))
+	print("\nincreased healing")
+	ana_helper(arr[0], steps)
+	x = np.arange(0, steps)
+	print("\nincreased mp5")
+	ana_helper(arr[1], steps)
+	print("\nincreased crit")
+	ana_helper(arr[2], steps)
 
 
 
