@@ -5,15 +5,18 @@ import numpy as np
 
 def heal(lower, upper, cast, healing, critted):
 	if critted:
-		return random.randint(lower, upper) * 1.5 + (healing * cast / 3.5)
+		return (random.randint(lower, upper) + (healing * cast / 3.5 * 1.12)) * 1.5
 	else:
-		return random.randint(lower, upper) + (healing * cast / 3.5)
+		return random.randint(lower, upper) + healing * cast / 3.5 * 1.12
 
 def flash_of_light(healing, critted):
-	return heal(458, 513, 1.5, healing, critted)
+	return heal(513, 574, 1.5, healing, critted)
 
-def holy_light(healing, critted):
-	return heal(2196, 2446, 2.5, healing, critted)
+def holy_light_r9(healing, critted):
+	return heal(1813, 2015, 2.5, healing, critted)
+
+def holy_light_r11(healing, critted):
+	return heal(2459, 2740, 2.5, healing, critted)
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -130,16 +133,16 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 			if spell_mana == 180:
 				healed += flash_of_light(healing, True)
 			if spell_mana == 660:
-				healed += holy_light(healing, True)
+				healed += holy_light_r9(healing, True)
 			if spell_mana == 840:
-				healed += holy_light(healing, True)
+				healed += holy_light_r11(healing, True)
 		else:
 			if spell_mana == 180:
 				healed += flash_of_light(healing, False)
 			if spell_mana == 660:
-				healed += holy_light(healing, False)
+				healed += holy_light_r9(healing, False)
 			if spell_mana == 840:
-				healed += holy_light(healing, False)
+				healed += holy_light_r11(healing, False)
 
 		if favor == 1:
 			favor = 0
