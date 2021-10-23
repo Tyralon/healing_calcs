@@ -114,17 +114,24 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 			rune_last_use = t
 		
 		# which heal/rank to cast
+
 		rvar = random.random()
 		if rvar < fol_ratio:
 			spell = fol
 		elif rvar < hl9_ratio:
 			spell = hl9
-			spell.updateGrace(t, grace_last_use)
-			grace = 1
+			if mana_pool >= spell.getBaseMana():
+				spell.updateGrace(t, grace_last_use)
+				grace = 1
+			else:
+				spell = fol
 		else:
 			spell = hl11
-			spell.updateGrace(t, grace_last_use)
-			grace = 1
+			if mana_pool >= spell.getBaseMana():
+				spell.updateGrace(t, grace_last_use)
+				grace = 1
+			else:
+				spell = fol
 			
 		# whether to pop cooldowns
 		if t > favor_delay and (favor_last_use + favor_cd) <= t:
