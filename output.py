@@ -25,6 +25,8 @@ def analysis(arr, steps):
 	ana_helper(arr[1], steps)
 	print("\nincreased crit")
 	ana_helper(arr[2], steps)
+	print("\nincreased int")
+	ana_helper(arr[3], steps)
 
 
 

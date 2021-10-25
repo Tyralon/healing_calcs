@@ -4,7 +4,7 @@ import numpy as np
 
 class Healing:
 	
-	def __init__(self, lower, upper, cast, mana, healing, crit):
+	def __init__(self, lower, upper, cast, mana, healing, crit, coeff):
 		self.lower = lower
 		self.upper = upper
 		self.cast = cast
@@ -14,6 +14,7 @@ class Healing:
 		self.base_cast = cast
 		self.base_mana = mana
 		self.critted = False
+		self.coeff = coeff
 
 	def getCast(self):
 		return self.cast
@@ -36,10 +37,10 @@ class Healing:
 	def heal(self):
 		if random.random() < self.crit:
 			self.critted = True
-			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12)) * 1.5
+			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)) * 1.5
 		else:
 			self.critted = False
-			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12))
+			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff))
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -57,9 +58,10 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 	t = 0.0
 	healed = 0
 	
-	fol = Healing(513, 574, 1.5, 180, healing, base_crit)
-	hl9 = Healing(1813, 2015, 2.5, 660, healing, base_crit + 0.06)
-	hl11 = Healing(2459, 2740, 2.5, 840, healing, base_crit + 0.06)
+	fol = Healing(513, 574, 1.5, 180, healing, base_crit, 1.0797)
+	hl8 = Healing(1424, 1584, 2.5, 580, healing, base_crit + 0.06, 1.023)
+	hl9 = Healing(1813, 2015, 2.5, 660, healing, base_crit + 0.06, 1.108)
+	hl11 = Healing(2459, 2740, 2.5, 840, healing, base_crit + 0.06, 1.1323)
 	
 	fol_mana = 180
 
@@ -154,7 +156,7 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 		if spell.getCritted():
 			mana_pool += spell.getBaseMana() * illu
 
-		# sets DF on CD
+		# puts DF on CD
 		if favor == 1:
 			favor = 0
 			favor_last_use = t
@@ -191,21 +193,21 @@ def simulation(runs, activity, ratio, mana_pool, healing, mp5, crit):
 	return [tto_median, heal_median, hps_median, over_limit / runs]
 
 def gathering_results():
-	runs = 50
-	activity = 0.95
+	runs = 5000
+	activity = 0.98
 	ratio = [97, 0, 3]
-	mana_pool = 11000
-	crit = 0.1900
+	mana_pool = 12723
+	crit = 0.2278
 	crit_step = 0.0036
-	mp5 = 150
+	mp5 = 163
 	mp5_step = 3
-	healing = 1900
+	healing = 2077
 	healing_step = 18
 
 	steps = 15
-	a_tto = np.zeros([3, steps, 2], float)
-	a_hld = np.zeros([3, steps, 2], float)
-	a_hps = np.zeros([3, steps, 2], float)
+	a_tto = np.zeros([4, steps, 2], float)
+	a_hld = np.zeros([4, steps, 2], float)
+	a_hps = np.zeros([4, steps, 2], float)
 	for i in range(steps):
 		a = simulation(runs, activity, ratio, mana_pool, healing + i * healing_step, mp5, crit)
 		a_tto[0, i, 0] = a[0]
@@ -230,6 +232,23 @@ def gathering_results():
 		a_hld[2, k, 1] = a[3]
 		a_hps[2, k, 0] = a[2]
 		a_hps[2, k, 1] = a[3]
+	for l in range(steps):
+#		mana_pool += l * 8 * 1.21 * 15
+#		crit += l * 8 * 1.21 / 79.4
+#		healing += l * 8 * 1.21 * 0.35
+		a = simulation(runs,
+			activity,
+			ratio,
+			mana_pool + l * 8 * 1.21 * 15,
+			healing + l * 8 * 1.21 * 0.35,
+			mp5,
+			crit + l * 8 * 1.21 / 79.4 / 100)
+		a_tto[3, l, 0] = a[0]
+		a_tto[3, l, 1] = a[3]
+		a_hld[3, l, 0] = a[1]
+		a_hld[3, l, 1] = a[3]
+		a_hps[3, l, 0] = a[2]
+		a_hps[3, l, 1] = a[3]
 	np.save("tto_15_steps_10000_iter", a_tto)
 	np.save("hld_15_steps_10000_iter", a_hld)
 	np.save("hps_15_steps_10000_iter", a_hps)
