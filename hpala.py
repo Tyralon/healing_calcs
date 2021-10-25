@@ -4,7 +4,7 @@ import numpy as np
 
 class Healing:
 	
-	def __init__(self, lower, upper, cast, mana, healing, crit, coeff):
+	def __init__(self, lower, upper, cast, mana, healing, crit, coeff, hl):
 		self.lower = lower
 		self.upper = upper
 		self.cast = cast
@@ -15,6 +15,7 @@ class Healing:
 		self.base_mana = mana
 		self.critted = False
 		self.coeff = coeff
+		self.isHL = hl
 
 	def getCast(self):
 		return self.cast
@@ -33,6 +34,12 @@ class Healing:
 
 	def getBaseMana(self):
 		return self.base_mana
+
+	def setHL(self, boolean):
+		self.isHL = boolean
+
+	def getHL(self):
+		return self.isHL
 
 	def heal(self):
 		if random.random() < self.crit:
@@ -58,11 +65,13 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 	t = 0.0
 	healed = 0
 	
-	fol = Healing(513, 574, 1.5, 180, healing, base_crit, 1.0797)
-	hl8 = Healing(1424, 1584, 2.5, 580, healing, base_crit + 0.06, 1.023)
-	hl9 = Healing(1813, 2015, 2.5, 660, healing, base_crit + 0.06, 1.108)
-	hl11 = Healing(2459, 2740, 2.5, 840, healing, base_crit + 0.06, 1.1323)
+	fol = Healing(513, 574, 1.5, 180, healing, base_crit, 1.0797, False)
+	hl8 = Healing(1424, 1584, 2.5, 580, healing, base_crit + 0.06, 1.023, True)
+	hl9 = Healing(1813, 2015, 2.5, 660, healing, base_crit + 0.06, 1.108, True)
+	hl11 = Healing(2459, 2740, 2.5, 840, healing, base_crit + 0.06, 1.1323, True)
 	
+	listOfHeals = [fol, hl8, hl9, hl11]
+
 	fol_mana = 180
 
 	grace = 0
@@ -117,24 +126,13 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 		
 		# which heal/rank to cast
 
-		rvar = random.random()
-		if rvar < fol_ratio:
-			spell = fol
-		elif rvar < hl9_ratio:
-			spell = hl9
-			if mana_pool >= spell.getBaseMana():
-				spell.updateGrace(t, grace_last_use)
-				grace = 1
-			else:
-				spell = fol
+		spell = random.choices(listOfHeals, weights=ratio, k=1)[0]	
+		if mana_pool >= spell.getBaseMana() and spell.getHL():
+			spell.updateGrace(t, grace_last_use)
+			grace = 1
 		else:
-			spell = hl11
-			if mana_pool >= spell.getBaseMana():
-				spell.updateGrace(t, grace_last_use)
-				grace = 1
-			else:
-				spell = fol
-			
+			spell = fol
+
 		# whether to pop cooldowns
 		if t > favor_delay and (favor_last_use + favor_cd) <= t:
 			spell.setCritted(True)
@@ -193,9 +191,9 @@ def simulation(runs, activity, ratio, mana_pool, healing, mp5, crit):
 	return [tto_median, heal_median, hps_median, over_limit / runs]
 
 def gathering_results():
-	runs = 5000
-	activity = 0.98
-	ratio = [97, 0, 3]
+	runs = 50
+	activity = 0.88
+	ratio = (31, 8, 61, 0)
 	mana_pool = 12723
 	crit = 0.2278
 	crit_step = 0.0036
