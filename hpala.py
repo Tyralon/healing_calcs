@@ -127,7 +127,7 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 		# which heal/rank to cast
 
 		spell = random.choices(listOfHeals, weights=ratio, k=1)[0]	
-		if mana_pool >= spell.getBaseMana() and spell.getHL():
+		if spell.getHL() and mana_pool >= spell.getBaseMana():
 			spell.updateGrace(t, grace_last_use)
 			grace = 1
 		else:
@@ -141,9 +141,8 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 			div_illu_last_use = t
 
 
+		# casts the spell. updates total healing and time elapsed.
 		t += spell.getCast()
-
-		# casts the spell and adds it to the total healing
 		healed += spell.heal()
 		
 		# removes/adds mana from mana pool
@@ -163,8 +162,8 @@ def encounter(activity, ratio, mana_pool, healing, mp5, base_crit):
 			grace = 0
 			grace_last_use = t
 
-		# randomly adds delay for next cast based on y = -(x-1) / x
-		t += -(activity - 1) / activity * spell.getCast()
+		# adds delay for next cast
+		t += (1 - activity) / activity * spell.getCast()
 
 		# checks time limit
 		if t >= limit:
@@ -191,9 +190,9 @@ def simulation(runs, activity, ratio, mana_pool, healing, mp5, crit):
 	return [tto_median, heal_median, hps_median, over_limit / runs]
 
 def gathering_results():
-	runs = 50
+	runs = 5000
 	activity = 0.88
-	ratio = (31, 8, 61, 0)
+	ratio = (57, 8, 34, 1)
 	mana_pool = 12723
 	crit = 0.2278
 	crit_step = 0.0036
@@ -231,9 +230,6 @@ def gathering_results():
 		a_hps[2, k, 0] = a[2]
 		a_hps[2, k, 1] = a[3]
 	for l in range(steps):
-#		mana_pool += l * 8 * 1.21 * 15
-#		crit += l * 8 * 1.21 / 79.4
-#		healing += l * 8 * 1.21 * 0.35
 		a = simulation(runs,
 			activity,
 			ratio,
