@@ -27,6 +27,8 @@ def analysis(arr, steps):
 	ana_helper(arr[2], steps)
 	print("\nincreased int")
 	ana_helper(arr[3], steps)
+	print("\nincreased haste")
+	ana_helper(arr[4], steps)
 
 
 
