@@ -69,10 +69,10 @@ def encounter(debug, activity, ratio, mana_pool, healing, mp5, base_crit, haste)
 	t = 0.0
 	healed = 0
 	
-	fol = Healing(513, 574, 1.5, 180, healing, base_crit, haste, 1.0797, False)
-	hl8 = Healing(1424, 1584, 2.5, 580, healing, base_crit + 0.06, haste, 1.023, True)
-	hl9 = Healing(1813, 2015, 2.5, 660, healing, base_crit + 0.06, haste, 1.108, True)
-	hl11 = Healing(2459, 2740, 2.5, 840, healing, base_crit + 0.06, haste, 1.1323, True)
+	fol = Healing(513, 574, 1.5, 180, healing, base_crit, haste, 1, False)
+	hl8 = Healing(1424, 1584, 2.5, 580, healing, base_crit + 0.06, haste, 1, True)
+	hl9 = Healing(1813, 2015, 2.5, 660, healing, base_crit + 0.06, haste, 1, True)
+	hl11 = Healing(2459, 2740, 2.5, 840, healing, base_crit + 0.06, haste, 1, True)
 	
 	listOfHeals = [fol, hl8, hl9, hl11]
 
