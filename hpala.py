@@ -48,16 +48,10 @@ class Healing:
 	def heal(self):
 		if random.random() < self.crit:
 			self.critted = True
-			if self.isHL:
-				return random.randint(self.lower, self.upper) * 2 + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)
-			else:
-				return random.randint(self.lower, self.upper) * 2 + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)
+			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)) * 1.5
 		else:
 			self.critted = False
-			if self.isHL:
-				return random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)
-			else:
-				return random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)
+			return random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -209,12 +203,12 @@ def gathering_results():
 	runs = 5000
 	activity = 0.88
 	ratio = (28, 45, 23, 4)
-	mana_pool = 12723
-	crit = 0.2278
+	mana_pool = 16293
+	crit = 0.29127
 	crit_step = 0.0036
-	mp5 = 163
+	mp5 = 265
 	mp5_step = 3
-	healing = 2077
+	healing = 2074
 	healing_step = 18
 	haste = 0
 	haste_step = 8
@@ -274,36 +268,7 @@ def gathering_results():
 	np.save("hld_15_steps_10000_iter", a_hld)
 	np.save("hps_15_steps_10000_iter", a_hps)
 
-
-def gathering_results_libram():
-	runs = 5000
-	activity = 0.90
-	ratio = (61, 17, 17, 5)
-	mana_pool = 12723
-	crit = 0.2278
-	mp5 = 163
-	healing = 2077
-	haste = 0
-
-	a_tto = np.zeros([2], float)
-	a_hld = np.zeros([2], float)
-	a_hps = np.zeros([2], float)
-	a = simulation(runs, activity, ratio, mana_pool, healing, mp5, crit, haste)
-	a_tto[0] = a[0]
-	a_tto[1] = a[3]
-	a_hld[0] = a[1]
-	a_hld[1] = a[3]
-	a_hps[0] = a[2]
-	a_hps[1] = a[3]
-	np.save("tto_libram", a_tto)
-	np.save("hld_libram", a_hld)
-	np.save("hps_libram", a_hps)
-
-#	np.save("tto_base", a_tto)
-#	np.save("hld_base", a_hld)
-#	np.save("hps_base", a_hps)
-
-gathering_results_libram()
+gathering_results()
 
 
 #a = encounter(True, 0.88, (28, 45, 23, 4), 12723, 2077, 163, 0.2278, 0)

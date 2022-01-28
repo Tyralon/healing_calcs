@@ -4,21 +4,21 @@ import numpy as np
 
 class Healing:
 	
-	def __init__(self, lower, upper, cast, mana, healing, crit, haste, coeff, hl, flat_fol, flat_hl):
+	def __init__(self, lower, upper, cast, mana, healing, flat_heal, crit, haste, coeff, bol_coeff, hl):
 		self.lower = lower
 		self.upper = upper
 		self.cast = cast
 		self.mana = mana
 		self.healing = healing
+		self.flat_heal = flat_heal
 		self.crit = crit
 		self.haste = haste
 		self.base_cast = cast
 		self.base_mana = mana
 		self.critted = False
 		self.coeff = coeff
+		self.bol_coeff = bol_coeff
 		self.isHL = hl
-		self.flat_fol = flat_fol
-		self.flat_hl = flat_hl
 
 	def getCast(self):
 		return self.cast
@@ -50,16 +50,10 @@ class Healing:
 	def heal(self):
 		if random.random() < self.crit:
 			self.critted = True
-			if self.isHL:
-				return random.randint(self.lower, self.upper) * 2 + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff) + self.flat_hl
-			else:
-				return random.randint(self.lower, self.upper) * 2 + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff) + self.flat_fol
+			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff + self.flat_heal * self.bol_coeff)) * 1.5
 		else:
 			self.critted = False
-			if self.isHL:
-				return random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff) + self.flat_hl
-			else:
-				return random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff) + self.flat_fol
+			return random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff + self.flat_heal * self.bol_coeff)
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -72,15 +66,16 @@ def mana_rune():
 def mana_pot_alch():
 	return mana_source(1800, 3000, 1.4)
 
+# continue here 1/11: figure out bol coeffs for other ranks
 def encounter(debug, activity, ratio, mana_pool, healing, heal_fol, heal_hl, mp5, base_crit, haste, flat_fol, flat_hl, mana_reduce):
 	assert sum(ratio) == 100
 	t = 0.0
 	healed = 0
 	
-	fol = Healing(513, 574, 1.5, 180, healing + heal_fol, base_crit, haste, 1.0797, False, flat_fol, flat_hl)
-	hl8 = Healing(1424, 1584, 2.5, 580 - mana_reduce, healing + heal_hl, base_crit + 0.06, haste, 1.023, True, flat_fol, flat_hl)
-	hl9 = Healing(1813, 2015, 2.5, 660 - mana_reduce, healing + heal_hl, base_crit + 0.06, haste, 1.108, True, flat_fol, flat_hl)
-	hl11 = Healing(2459, 2740, 2.5, 840 - mana_reduce, healing + heal_hl, base_crit + 0.06, haste, 1.1323, True, flat_fol, flat_hl)
+	fol = Healing(513, 574, 1.5, 180, healing + heal_fol, flat_fol, base_crit, haste, 1.0797, 1.172, False)
+	hl8 = Healing(1424, 1584, 2.5, 580 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1.023, 1.09, True)
+	hl9 = Healing(1813, 2015, 2.5, 660 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1.108, 1.18, True)
+	hl11 = Healing(2459, 2740, 2.5, 840 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1.1323, 1.72, True)
 	
 	listOfHeals = [fol, hl8, hl9, hl11]
 
@@ -217,9 +212,9 @@ def gathering_results_libram():
 	healing = 2077
 	haste = 0
 
-	a_tto = np.zeros([5, 2, 2], float)
-	a_hld = np.zeros([5, 2, 2], float)
-	a_hps = np.zeros([5, 2, 2], float)
+	a_tto = np.zeros([6, 2, 2], float)
+	a_hld = np.zeros([6, 2, 2], float)
+	a_hps = np.zeros([6, 2, 2], float)
 	# no libram
 	a = simulation(runs, activity, ratio, mana_pool, healing, 0, 0, mp5, crit, haste, 0, 0, 0)
 	a_tto[0, 0, 0] = a[0]
@@ -246,6 +241,12 @@ def gathering_results_libram():
 	a_hld[4, 0, 1] = a[3]
 	a_hps[4, 0, 0] = a[2]
 	a_hps[4, 0, 1] = a[3]
+	a_tto[5, 0, 0] = a[0]
+	a_tto[5, 0, 1] = a[3]
+	a_hld[5, 0, 0] = a[1]
+	a_hld[5, 0, 1] = a[3]
+	a_hps[5, 0, 0] = a[2]
+	a_hps[5, 0, 1] = a[3]
 	# Absolute Truth
 	a = simulation(runs, activity, ratio, mana_pool, healing, 0, 0, mp5, crit, haste, 0, 0, 34)
 	a_tto[0, 1, 0] = a[0]
@@ -255,15 +256,21 @@ def gathering_results_libram():
 	a_hps[0, 1, 0] = a[2]
 	a_hps[0, 1, 1] = a[3]
 	# no libram with BoL
-	a = simulation(runs, activity, ratio, mana_pool, healing, 185, 580, mp5, crit, haste, 0, 0, 0)
+	a = simulation(runs, activity, ratio, mana_pool, healing, 0, 0, mp5, crit, haste, 185, 580, 0)
 	a_tto[1, 0, 0] = a[0]
 	a_tto[1, 0, 1] = a[3]
 	a_hld[1, 0, 0] = a[1]
 	a_hld[1, 0, 1] = a[3]
 	a_hps[1, 0, 0] = a[2]
 	a_hps[1, 0, 1] = a[3]
+	a_tto[5, 1, 0] = a[0]
+	a_tto[5, 1, 1] = a[3]
+	a_hld[5, 1, 0] = a[1]
+	a_hld[5, 1, 1] = a[3]
+	a_hps[5, 1, 0] = a[2]
+	a_hps[5, 1, 1] = a[3]
 	# Souls Redeemed with BoL
-	a = simulation(runs, activity, ratio, mana_pool, healing, 185, 580, mp5, crit, haste, 60, 120, 0)
+	a = simulation(runs, activity, ratio, mana_pool, healing, 0, 0, mp5, crit, haste, 185+60, 580+120, 0)
 	a_tto[1, 1, 0] = a[0]
 	a_tto[1, 1, 1] = a[3]
 	a_hld[1, 1, 0] = a[1]
