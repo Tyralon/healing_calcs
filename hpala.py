@@ -70,11 +70,11 @@ def encounter(debug, activity, ratio, mana_pool, healing, mp5, base_crit, haste)
 	healed = 0
 	
 	fol = Healing(513, 574, 1.5, 180, healing, base_crit, haste, 1, False)
-	hl8 = Healing(1424, 1584, 2.5, 580, healing, base_crit + 0.06, haste, 1, True)
 	hl9 = Healing(1813, 2015, 2.5, 660, healing, base_crit + 0.06, haste, 1, True)
+	hl10 = Healing(1985, 2208, 2.5, 710, healing, base_crit + 0.06, haste, 1, True)
 	hl11 = Healing(2459, 2740, 2.5, 840, healing, base_crit + 0.06, haste, 1, True)
 	
-	listOfHeals = [fol, hl8, hl9, hl11]
+	listOfHeals = [fol, hl9, hl10, hl11]
 
 	fol_mana = 180
 
@@ -201,8 +201,8 @@ def simulation(runs, activity, ratio, mana_pool, healing, mp5, crit, haste):
 
 def gathering_results():
 	runs = 5000
-	activity = 0.88
-	ratio = (28, 45, 23, 4)
+	activity = 0.75
+	ratio = (10, 45, 20, 25)
 	mana_pool = 16293
 	crit = 0.29127
 	crit_step = 0.0036
