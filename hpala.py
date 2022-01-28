@@ -4,12 +4,13 @@ import numpy as np
 
 class Healing:
 	
-	def __init__(self, lower, upper, cast, mana, healing, crit, haste, coeff, hl):
+	def __init__(self, lower, upper, cast, mana, healing, flat_heal, crit, haste, coeff, hl):
 		self.lower = lower
 		self.upper = upper
 		self.cast = cast
 		self.mana = mana
 		self.healing = healing
+		self.flat_heal = flat_heal
 		self.crit = crit
 		self.haste = haste
 		self.base_cast = cast
@@ -48,10 +49,10 @@ class Healing:
 	def heal(self):
 		if random.random() < self.crit:
 			self.critted = True
-			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)) * 1.5
+			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5) + self.flat_heal * self.coeff) * 1.12 * 1.5
 		else:
 			self.critted = False
-			return random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff)
+			return random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5) + self.flat_heal * self.coeff) * 1.12
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -64,15 +65,15 @@ def mana_rune():
 def mana_pot_alch():
 	return mana_source(1800, 3000, 1.4)
 
-def encounter(debug, activity, ratio, mana_pool, healing, mp5, base_crit, haste):
+def encounter(debug, activity, ratio, mana_pool, healing, bol, mp5, base_crit, haste):
 	assert sum(ratio) == 100
 	t = 0.0
 	healed = 0
 	
-	fol = Healing(513, 574, 1.5, 180, healing, base_crit, haste, 1, False)
-	hl9 = Healing(1813, 2015, 2.5, 660, healing, base_crit + 0.06, haste, 1, True)
-	hl10 = Healing(1985, 2208, 2.5, 710, healing, base_crit + 0.06, haste, 1, True)
-	hl11 = Healing(2459, 2740, 2.5, 840, healing, base_crit + 0.06, haste, 1, True)
+	fol = Healing(513, 574, 1.5, 180, healing, 185 * bol, base_crit, haste, 1, False)
+	hl9 = Healing(1813, 2015, 2.5, 660, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
+	hl10 = Healing(1985, 2208, 2.5, 710, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
+	hl11 = Healing(2459, 2740, 2.5, 840, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
 	
 	listOfHeals = [fol, hl9, hl10, hl11]
 
@@ -182,12 +183,12 @@ def encounter(debug, activity, ratio, mana_pool, healing, mp5, base_crit, haste)
 
 	return (t, healed, limit_reached)
 
-def simulation(runs, activity, ratio, mana_pool, healing, mp5, crit, haste):
+def simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
 	tto = []
 	healList = []
 	over_limit = 0
 	for i in range(runs):
-		sim = encounter(False, activity, ratio, mana_pool, healing, mp5, crit, haste)
+		sim = encounter(False, activity, ratio, mana_pool, healing, bol, mp5, crit, haste)
 		tto.append(sim[0])
 		healList.append(sim[1])
 		if sim[2]:
@@ -212,13 +213,14 @@ def gathering_results():
 	healing_step = 18
 	haste = 0
 	haste_step = 8
+	bol = 1
 
 	steps = 15
 	a_tto = np.zeros([5, steps, 2], float)
 	a_hld = np.zeros([5, steps, 2], float)
 	a_hps = np.zeros([5, steps, 2], float)
 	for i in range(steps):
-		a = simulation(runs, activity, ratio, mana_pool, healing + i * healing_step, mp5, crit, haste)
+		a = simulation(runs, activity, ratio, mana_pool, healing + i * healing_step, bol, mp5, crit, haste)
 		a_tto[0, i, 0] = a[0]
 		a_tto[0, i, 1] = a[3]
 		a_hld[0, i, 0] = a[1]
@@ -226,7 +228,7 @@ def gathering_results():
 		a_hps[0, i, 0] = a[2]
 		a_hps[0, i, 1] = a[3]
 	for j in range(steps):
-		a = simulation(runs, activity, ratio, mana_pool, healing, mp5 + j * mp5_step, crit, haste)
+		a = simulation(runs, activity, ratio, mana_pool, healing, bol, mp5 + j * mp5_step, crit, haste)
 		a_tto[1, j, 0] = a[0]
 		a_tto[1, j, 1] = a[3]
 		a_hld[1, j, 0] = a[1]
@@ -234,7 +236,7 @@ def gathering_results():
 		a_hps[1, j, 0] = a[2]
 		a_hps[1, j, 1] = a[3]
 	for k in range(steps):
-		a = simulation(runs, activity, ratio, mana_pool, healing, mp5, crit + k * crit_step, haste)
+		a = simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit + k * crit_step, haste)
 		a_tto[2, k, 0] = a[0]
 		a_tto[2, k, 1] = a[3]
 		a_hld[2, k, 0] = a[1]
@@ -247,6 +249,7 @@ def gathering_results():
 			ratio,
 			mana_pool + l * 8 * 1.21 * 15,
 			healing + l * 8 * 1.21 * 0.35,
+			bol,
 			mp5,
 			crit + l * 8 * 1.21 / 80 / 100,
 			haste)
@@ -257,7 +260,7 @@ def gathering_results():
 		a_hps[3, l, 0] = a[2]
 		a_hps[3, l, 1] = a[3]
 	for m in range(steps):
-		a = simulation(runs, activity, ratio, mana_pool, healing, mp5, crit, haste + m * haste_step)
+		a = simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste + m * haste_step)
 		a_tto[4, m, 0] = a[0]
 		a_tto[4, m, 1] = a[3]
 		a_hld[4, m, 0] = a[1]
