@@ -4,7 +4,7 @@ import numpy as np
 
 class Healing:
 	
-	def __init__(self, lower, upper, cast, mana, healing, flat_heal, crit, haste, coeff, bol_coeff, hl):
+	def __init__(self, lower, upper, cast, mana, healing, flat_heal, crit, haste, coeff, hl):
 		self.lower = lower
 		self.upper = upper
 		self.cast = cast
@@ -17,7 +17,6 @@ class Healing:
 		self.base_mana = mana
 		self.critted = False
 		self.coeff = coeff
-		self.bol_coeff = bol_coeff
 		self.isHL = hl
 
 	def getCast(self):
@@ -50,10 +49,10 @@ class Healing:
 	def heal(self):
 		if random.random() < self.crit:
 			self.critted = True
-			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff + self.flat_heal * self.bol_coeff)) * 1.5
+			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5) + self.flat_heal * self.coeff) * 1.12 * 1.5
 		else:
 			self.critted = False
-			return random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5 * 1.12 * self.coeff + self.flat_heal * self.bol_coeff)
+			return random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5) + self.flat_heal * self.coeff) * 1.12
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -72,12 +71,12 @@ def encounter(debug, activity, ratio, mana_pool, healing, heal_fol, heal_hl, mp5
 	t = 0.0
 	healed = 0
 	
-	fol = Healing(513, 574, 1.5, 180, healing + heal_fol, flat_fol, base_crit, haste, 1.0797, 1.172, False)
-	hl8 = Healing(1424, 1584, 2.5, 580 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1.023, 1.09, True)
-	hl9 = Healing(1813, 2015, 2.5, 660 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1.108, 1.18, True)
-	hl11 = Healing(2459, 2740, 2.5, 840 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1.1323, 1.72, True)
+	fol = Healing(513, 574, 1.5, 180, healing + heal_fol, flat_fol, base_crit, haste, 1, False)
+	hl9 = Healing(1813, 2015, 2.5, 660 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1, True)
+	hl10 = Healing(1985, 2208, 2.5, 710 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1, True)
+	hl11 = Healing(2459, 2740, 2.5, 840 - mana_reduce, healing + heal_hl, flat_hl, base_crit + 0.06, haste, 1, True)
 	
-	listOfHeals = [fol, hl8, hl9, hl11]
+	listOfHeals = [fol, hl9, hl10, hl11]
 
 	fol_mana = 180
 
@@ -204,12 +203,12 @@ def simulation(runs, activity, ratio, mana_pool, healing, heal_fol, heal_hl, mp5
 
 def gathering_results_libram():
 	runs = 5000
-	activity = 0.98
-	ratio = (96, 1, 2, 1)
-	mana_pool = 12723
-	crit = 0.2278
-	mp5 = 163
-	healing = 2077
+	activity = 0.75
+	ratio = (10, 45, 20, 25)
+	mana_pool = 16293
+	crit = 0.29127
+	mp5 = 265
+	healing = 2074
 	haste = 0
 
 	a_tto = np.zeros([6, 2, 2], float)
