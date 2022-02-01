@@ -1,6 +1,7 @@
 import random
 import statistics
 import numpy as np
+import threading
 
 class Healing:
 	
@@ -64,6 +65,11 @@ def mana_rune():
 # mana from super mana pot with alchemist's stone
 def mana_pot_alch():
 	return mana_source(1800, 3000, 1.4)
+
+counter = 0
+over_limit = 0
+tto = []
+hld = []
 
 def encounter(debug, activity, ratio, mana_pool, healing, bol, mp5, base_crit, haste):
 	assert sum(ratio) == 100
@@ -183,22 +189,68 @@ def encounter(debug, activity, ratio, mana_pool, healing, bol, mp5, base_crit, h
 
 	return (t, healed, limit_reached)
 
-def simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
-	tto = []
-	healList = []
-	over_limit = 0
-	for i in range(runs):
-		sim = encounter(False, activity, ratio, mana_pool, healing, bol, mp5, crit, haste)
-		tto.append(sim[0])
-		healList.append(sim[1])
-		if sim[2]:
+def encounter_thread(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
+	global counter
+	global over_limit
+	global tto
+	global hld
+
+	while True:
+		c_lock.acquire()
+		if counter >= runs:
+			c_lock.release()
+			break
+		c_lock.release()
+
+		result = encounter(False, activity, ratio, mana_pool, healing, bol, mp5, crit, haste)
+
+		c_lock.acquire()
+		counter += 1
+		c_lock.release()
+
+		tto.append(result[0])
+		hld.append(result[1])
+		
+		if result[2]:
+			l_lock.acquire()
 			over_limit += 1
+			l_lock.release()
+
+
+def simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
+	global counter
+	global over_limit
+	global tto
+	global hld
+
+	c_lock = threading.Lock()
+	l_lock = threading.Lock()
+
+	counter = 0
+	over_limit = 0
+	tto = []
+	hld = []
+
+	t1 = threading.Thread(target=encounter_thread, args=(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste,))
+	t2 = threading.Thread(target=encounter_thread, args=(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste,))
+	t3 = threading.Thread(target=encounter_thread, args=(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste,))
+	t4 = threading.Thread(target=encounter_thread, args=(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste,))
+	
+	t1.start()
+	t2.start()
+	t3.start()
+	t4.start()
+
+	t1.join()
+	t2.join()
+	t3.join()
+	t4.join()
 
 	tto_median = statistics.median(tto)
-	heal_median = statistics.median(healList)
-	hps_median = heal_median / tto_median
+	hld_median = statistics.median(hld)
+	hps_median = hld_median / tto_median
 
-	return [tto_median, heal_median, hps_median, over_limit / runs]
+	return [tto_median, hld_median, hps_median, over_limit / runs]
 
 def gathering_results():
 	runs = 5000
