@@ -1,6 +1,6 @@
 import multiprocessing
 import random
-from multiprocessing import Process, Lock, Value, Array, Manager
+from multiprocessing import Process, Lock, Value, Array, Manager, Pool
 
 counter = 0
 numbers = []
@@ -31,14 +31,13 @@ if __name__ == '__main__':
 	counter = mngr.Value('i', 0)
 	lock = mngr.Lock()
 
-	p1 = Process(target=foo_proc, args=(lock, counter, numbers, 9, 7,))
-	p2 = Process(target=foo_proc, args=(lock, counter, numbers, 9, 7,))
+	arg = (lock, counter, numbers, 9, 7,)
 
-	p1.start()
-	p2.start()
+	with Pool(2) as pool:
+		pool.starmap(foo_proc, [arg, arg])
 
-	p1.join()
-	p2.join()
+	pool.close()
+	pool.join()
 
 	print(numbers[:])
 	print(counter.value)
