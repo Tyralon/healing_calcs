@@ -1,7 +1,8 @@
 import random
 import statistics
 import numpy as np
-import threading
+from multiprocessing import Pool
+from functools import partial
 
 class Healing:
 	
@@ -65,11 +66,6 @@ def mana_rune():
 # mana from super mana pot with alchemist's stone
 def mana_pot_alch():
 	return mana_source(1800, 3000, 1.4)
-
-counter = 0
-over_limit = 0
-tto = []
-hld = []
 
 def encounter(debug, activity, ratio, mana_pool, healing, bol, mp5, base_crit, haste):
 	assert sum(ratio) == 100
@@ -189,68 +185,57 @@ def encounter(debug, activity, ratio, mana_pool, healing, bol, mp5, base_crit, h
 
 	return (t, healed, limit_reached)
 
-def encounter_thread(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
-	global counter
-	global over_limit
-	global tto
-	global hld
+def encounter_proc(tto, hld, counter, over_limit, c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
 
 	while True:
 		c_lock.acquire()
-		if counter >= runs:
+		if counter.value >= runs:
 			c_lock.release()
 			break
+		else:
+			counter.value += 1
 		c_lock.release()
 
 		result = encounter(False, activity, ratio, mana_pool, healing, bol, mp5, crit, haste)
-
-		c_lock.acquire()
-		counter += 1
-		c_lock.release()
 
 		tto.append(result[0])
 		hld.append(result[1])
 		
 		if result[2]:
 			l_lock.acquire()
-			over_limit += 1
+			over_limit.value += 1
 			l_lock.release()
 
 
 def simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
-	global counter
-	global over_limit
-	global tto
-	global hld
-
-	c_lock = threading.Lock()
-	l_lock = threading.Lock()
-
-	counter = 0
-	over_limit = 0
 	tto = []
 	hld = []
+	over_limit = 0
 
-	t1 = threading.Thread(target=encounter_thread, args=(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste,))
-	t2 = threading.Thread(target=encounter_thread, args=(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste,))
-	t3 = threading.Thread(target=encounter_thread, args=(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste,))
-	t4 = threading.Thread(target=encounter_thread, args=(c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste,))
+	for i in range(runs):
+		sim = encounter(False, activity, ratio, mana_pool, healing, bol, mp5, crit, haste)
+		tto.append(sim[0])
+		hld.append(sim[1])
+		if sim[2]:
+			over_limit += 1
 	
-	t1.start()
-	t2.start()
-	t3.start()
-	t4.start()
-
-	t1.join()
-	t2.join()
-	t3.join()
-	t4.join()
-
 	tto_median = statistics.median(tto)
 	hld_median = statistics.median(hld)
 	hps_median = hld_median / tto_median
 
 	return [tto_median, hld_median, hps_median, over_limit / runs]
+	
+def callback_fn(result, n, i, tto, hld, hps):
+	tto[n, i, 0] = result[0]
+	tto[n, i, 1] = result[3]
+	hld[n, i, 0] = result[1]
+	hld[n, i, 1] = result[3]
+	hps[n, i, 0] = result[2]
+	hps[n, i, 1] = result[3]
+
+def callback_er(result):
+	print(result)
+		
 
 def gathering_results():
 	runs = 5000
@@ -271,59 +256,44 @@ def gathering_results():
 	a_tto = np.zeros([5, steps, 2], float)
 	a_hld = np.zeros([5, steps, 2], float)
 	a_hps = np.zeros([5, steps, 2], float)
-	for i in range(steps):
-		a = simulation(runs, activity, ratio, mana_pool, healing + i * healing_step, bol, mp5, crit, haste)
-		a_tto[0, i, 0] = a[0]
-		a_tto[0, i, 1] = a[3]
-		a_hld[0, i, 0] = a[1]
-		a_hld[0, i, 1] = a[3]
-		a_hps[0, i, 0] = a[2]
-		a_hps[0, i, 1] = a[3]
-	for j in range(steps):
-		a = simulation(runs, activity, ratio, mana_pool, healing, bol, mp5 + j * mp5_step, crit, haste)
-		a_tto[1, j, 0] = a[0]
-		a_tto[1, j, 1] = a[3]
-		a_hld[1, j, 0] = a[1]
-		a_hld[1, j, 1] = a[3]
-		a_hps[1, j, 0] = a[2]
-		a_hps[1, j, 1] = a[3]
-	for k in range(steps):
-		a = simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit + k * crit_step, haste)
-		a_tto[2, k, 0] = a[0]
-		a_tto[2, k, 1] = a[3]
-		a_hld[2, k, 0] = a[1]
-		a_hld[2, k, 1] = a[3]
-		a_hps[2, k, 0] = a[2]
-		a_hps[2, k, 1] = a[3]
-	for l in range(steps):
-		a = simulation(runs,
-			activity,
-			ratio,
-			mana_pool + l * 8 * 1.21 * 15,
-			healing + l * 8 * 1.21 * 0.35,
-			bol,
-			mp5,
-			crit + l * 8 * 1.21 / 80 / 100,
-			haste)
-		a_tto[3, l, 0] = a[0]
-		a_tto[3, l, 1] = a[3]
-		a_hld[3, l, 0] = a[1]
-		a_hld[3, l, 1] = a[3]
-		a_hps[3, l, 0] = a[2]
-		a_hps[3, l, 1] = a[3]
-	for m in range(steps):
-		a = simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste + m * haste_step)
-		a_tto[4, m, 0] = a[0]
-		a_tto[4, m, 1] = a[3]
-		a_hld[4, m, 0] = a[1]
-		a_hld[4, m, 1] = a[3]
-		a_hps[4, m, 0] = a[2]
-		a_hps[4, m, 1] = a[3]
+	with Pool(4) as pool:
+		# +healing
+		for i in range(steps):
+			pool.apply_async(simulation, args=(runs, activity, ratio, mana_pool, healing + i * healing_step, bol, mp5, crit, haste), callback=partial(callback_fn, n=0, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+
+		# +mp5
+		for i in range(steps):
+			pool.apply_async(simulation, args=(runs, activity, ratio, mana_pool, healing, bol, mp5 + i * mp5_step, crit, haste), callback=partial(callback_fn, n=1, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+
+		# +crit
+		for i in range(steps):
+			pool.apply_async(simulation, args=(runs, activity, ratio, mana_pool, healing, bol, mp5, crit + i * crit_step, haste), callback=partial(callback_fn, n=2, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+
+		# +int
+		for i in range(steps):
+			pool.apply_async(simulation, args=(runs,
+				activity,
+				ratio,
+				mana_pool + i * 8 * 1.21 * 15,
+				healing + i * 8 * 1.21 * 0.35,
+				bol,
+				mp5,
+				crit + i * 8 * 1.21 / 80 / 100,
+				haste),
+				callback=partial(callback_fn, n=3, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+
+		# +haste
+		for i in range(steps):
+			pool.apply_async(simulation, args=(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste + i * haste_step), callback=partial(callback_fn, n=4, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+
+		pool.close()
+		pool.join()
 	np.save("tto_15_steps_10000_iter", a_tto)
 	np.save("hld_15_steps_10000_iter", a_hld)
 	np.save("hps_15_steps_10000_iter", a_hps)
 
-gathering_results()
+if __name__ == '__main__':
+	gathering_results()
 
 
 #a = encounter(True, 0.88, (28, 45, 23, 4), 12723, 2077, 163, 0.2278, 0)
