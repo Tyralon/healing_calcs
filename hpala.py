@@ -4,6 +4,61 @@ import numpy as np
 from multiprocessing import Pool
 from functools import partial
 
+class Encounter:
+
+	def __init__(self, limit, activity, ratio, mana_pool, healing, bol, mp5, base_crit, haste):
+		self.fol = Healing(513, 574, 1.5, 180, healing, 185 * bol, base_crit, haste, 1, False)
+		self.hl9 = Healing(1813, 2015, 2.5, 660, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
+		self.hl10 = Healing(1985, 2208, 2.5, 710, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
+		self.hl11 = Healing(2459, 2740, 2.5, 840, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
+		self.heals_list = [self.fol, self.hl9, self.hl10, self.hl11]
+		self.fol_mana = 180
+		self.time = 0.0
+		self.healed = 0
+		self.mana_tick = 2
+		self.mp2 = mp5 / 5 * 2
+		self.mana_pool = mana_pool
+		self.max_mana = mana_pool
+		self.last_tick = self.time
+		self.activity = activity
+		self.ratio = ratio
+		self.limit = limit
+		self.limit_reached = False
+		self.pot_cd = 120
+		self.pot_delay = 60
+		self.pot_last_use = self.pot_delay - self.pot_cd
+		self.rune_cd = 120
+		self.rune_delay = 60
+		self.rune_last_use = self.rune_delay - self.rune_cd
+		self.illu_factor = 0.6
+		self.favor = 0
+		self.favor_cd = 120
+		self.favor_delay = 60
+		self.favor_last_use = self.favor_delay - self.favor_cd
+		self.div_illu_duration = 15
+		self.div_illu_cd = 120
+		self.div_illu_delay = 60
+		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
+		self.grace = 0
+		self.grace_effect = 0.5
+		self.grace_duration = 15
+		self.grace_last_use = -16
+
+	def refresh(self):
+		self.time = 0.0
+		self.healed = 0
+		self.mana_pool = self.max_mana
+		self.last_tick = self.time
+		self.pot_last_use = self.pot_delay - self.pot_cd
+		self.rune_last_use = self.rune_delay - self.rune_cd
+		self.favor = 0
+		self.favor_last_use = self.favor_delay - self.favor_cd
+		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
+		self.grace = 0
+		self.grace_last_use = -16
+		self.limit_reached = False
+
+
 class Healing:
 	
 	def __init__(self, lower, upper, cast, mana, healing, flat_heal, crit, haste, coeff, hl):
@@ -21,35 +76,14 @@ class Healing:
 		self.coeff = coeff
 		self.isHL = hl
 
-	def getCast(self):
-		return self.cast
-
-	def updateGrace(self, t, last_use):
-		if (last_use + 15) >= t:
-			self.cast = self.base_cast - 0.5
-		else:
-			self.cast = self.base_cast
-	
 	def updateHaste(self, t, last_grace):
 		if self.isHL and (last_grace + 15) >= t:
 			self.cast = (self.base_cast - 0.5) / ( 1 + self.haste / 1577)
 		else:
 			self.cast = self.base_cast / (1 + self.haste / 1577)
 	
-	def setCritted(self, boolean):
-		self.critted = boolean
-
-	def getCritted(self):
-		return self.critted
-
-	def getBaseMana(self):
-		return self.base_mana
-
-	def getHL(self):
-		return self.isHL
-
-	def heal(self):
-		if random.random() < self.crit:
+	def heal(self, favor):
+		if random.random() > (1 - self.crit - favor):
 			self.critted = True
 			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5) + self.flat_heal * self.coeff) * 1.12 * 1.5
 		else:
@@ -67,153 +101,115 @@ def mana_rune():
 def mana_pot_alch():
 	return mana_source(1800, 3000, 1.4)
 
-def encounter(debug, activity, ratio, mana_pool, healing, bol, mp5, base_crit, haste):
-	assert sum(ratio) == 100
-	t = 0.0
-	healed = 0
-	
-	fol = Healing(513, 574, 1.5, 180, healing, 185 * bol, base_crit, haste, 1, False)
-	hl9 = Healing(1813, 2015, 2.5, 660, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
-	hl10 = Healing(1985, 2208, 2.5, 710, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
-	hl11 = Healing(2459, 2740, 2.5, 840, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
-	
-	listOfHeals = [fol, hl9, hl10, hl11]
+def encounter(enc):
+	heals_list = enc.heals_list
+	fol_mana = enc.fol_mana
+	fol = heals_list[0]
+	time = enc.time
+	healed = enc.healed
+	mana_tick = enc.mana_tick
+	mp2 = enc.mp2
+	mana_pool = enc.mana_pool
+	max_mana = enc.max_mana
+	last_tick = enc.last_tick
+	activity = enc.activity
+	ratio = enc.ratio
+	limit = enc.limit
+	limit_reached = enc.limit_reached
+	pot_cd = enc.pot_cd
+	pot_delay = enc.pot_delay
+	pot_last_use = enc.pot_last_use
+	rune_cd = enc.rune_cd
+	rune_delay = enc.rune_delay
+	rune_last_use = enc.rune_last_use
+	illu_factor = enc.illu_factor
+	favor = enc.favor
+	favor_cd = enc.favor_cd
+	favor_delay = enc.favor_delay
+	favor_last_use = enc.favor_last_use
+	div_illu_duration = enc.div_illu_duration
+	div_illu_cd = enc.div_illu_cd
+	div_illu_delay = enc.div_illu_delay
+	div_illu_last_use = enc.div_illu_last_use
+	grace = enc.grace
+	grace_effect = enc.grace_effect
+	grace_duration = enc.grace_duration
+	grace_last_use = enc.grace_last_use
 
-	fol_mana = 180
 
-	grace = 0
-	grace_effect = 0.5
-	grace_duration = 15
-	grace_last_use = -16
-
-	mana_tick = 2
-	mp2 = mp5 / 5 * 2
-	last_tick = t
-
-	pot_cd = 120
-	pot_delay = 60
-	pot_last_use = pot_delay - pot_cd
-
-	rune_cd = 120
-	rune_delay = 60
-	rune_last_use = rune_delay - rune_cd
-
-	illu = 0.6
-	
-	favor = 0
-	favor_cd = 120
-	favor_delay = 30
-	favor_last_use = favor_delay - favor_cd
-
-	div_illu_duration = 15
-	div_illu_cd = 180
-	div_illu_delay = 30
-	div_illu_last_use = div_illu_delay - div_illu_cd
-	
-	limit = 420
-	# limit encounters to 420s (7 mins)
-	limit_reached = False
-
-	while mana_pool >= fol_mana and not limit_reached:
+	while mana_pool >= fol_mana:# and not limit_reached:
 		# adds mana from mp5
-		while last_tick < t:
+		while last_tick < time:
 			last_tick += mana_tick
 			mana_pool += mp2
 
 		# whether to pot/rune
-		if t > pot_delay and (pot_last_use + pot_cd) <= t:
-			mana_pool += mana_pot_alch()
-			pot_last_use = t
-		if t > rune_delay and (rune_last_use + rune_cd) <= t:
-			mana_pool += mana_rune()
-			rune_last_use = t
+		if (pot_last_use + pot_cd) <= time and time > pot_delay:
+#			mana_pool += mana_pot_alch()
+			mana_pool += random.randint(900, 1500)
+			pot_last_use = time
+		if (rune_last_use + rune_cd) <= time and time > rune_delay:
+#			mana_pool += mana_rune()
+			mana_pool += random.randint(2520, 4200)
+			rune_last_use = time
 		
 		# which heal/rank to cast
 
-		spell = random.choices(listOfHeals, weights=ratio, k=1)[0]	
-		if spell.getHL() and mana_pool >= spell.getBaseMana():
+		spell = random.choices(heals_list, weights=ratio, k=1)[0]	
+		if spell.isHL and mana_pool >= spell.base_mana:
 			grace = 1
 		else:
 			spell = fol
-		spell.updateHaste(t, grace_last_use)
+		spell.updateHaste(time, grace_last_use)
 
 		# whether to pop cooldowns
-		if t > favor_delay and (favor_last_use + favor_cd) <= t:
-			spell.setCritted(True)
+		if (favor_last_use + favor_cd) <= time and time > favor_delay:
 			favor = 1
-		if t > div_illu_delay and (div_illu_last_use + div_illu_cd) <= t:
-			div_illu_last_use = t
+		if (div_illu_last_use + div_illu_cd) <= time and time > div_illu_delay:
+			div_illu_last_use = time
 
 
 		# casts the spell. updates total healing and time elapsed.
-		if debug:
-			print("Time:\t" + str(round(t, 1)))
-		t += spell.getCast()
-		if debug:
-			temp_heal = spell.heal()
-			print("Heal:\t\t" + str(round(temp_heal)))
-			healed += temp_heal
-			print("Total healed:\t\t" + str(round(healed)) + "\n")
-			temp_heal = 0
-		else:
-			healed += spell.heal()
+		time += spell.cast
+		healed += spell.heal(favor)
 		
 		# removes/adds mana from mana pool
-		if (div_illu_last_use + div_illu_duration) >= t:
-			mana_pool -= spell.getBaseMana() / 2
+		if (div_illu_last_use + div_illu_duration) >= time:
+			mana_pool -= spell.base_mana / 2
 		else:
-			mana_pool -= spell.getBaseMana()
-		if spell.getCritted():
-			mana_pool += spell.getBaseMana() * illu
+			mana_pool -= spell.base_mana
+		if spell.critted:
+			mana_pool += spell.base_mana * illu_factor
 
 		# puts DF on CD
 		if favor == 1:
 			favor = 0
-			favor_last_use = t
+			favor_last_use = time
 		# updates last use for light's grace
 		if grace == 1:
 			grace = 0
-			grace_last_use = t
+			grace_last_use = time
 
 		# adds delay for next cast
-		t += (1 - activity) / activity * spell.getCast()
+		time += (1 - activity) / activity * spell.cast
 
 		# checks time limit
-		if t >= limit:
-			limit_reached = True
-#			print("Limit reached! - Mana left: " + str(round(mana_pool)))
+#		if time >= limit:
+#			limit_reached = True
 
-	return (t, healed, limit_reached)
+	return (time, healed, limit_reached)
 
-def encounter_proc(tto, hld, counter, over_limit, c_lock, l_lock, runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
-
-	while True:
-		c_lock.acquire()
-		if counter.value >= runs:
-			c_lock.release()
-			break
-		else:
-			counter.value += 1
-		c_lock.release()
-
-		result = encounter(False, activity, ratio, mana_pool, healing, bol, mp5, crit, haste)
-
-		tto.append(result[0])
-		hld.append(result[1])
-		
-		if result[2]:
-			l_lock.acquire()
-			over_limit.value += 1
-			l_lock.release()
-
-
-def simulation(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
+def simulation(runs, limit, activity, ratio, mana_pool, healing, bol, mp5, crit, haste):
 	tto = []
 	hld = []
 	over_limit = 0
 
+	encounter_object = Encounter(limit, activity, ratio, mana_pool, healing, bol, mp5, crit, haste)
+	assert sum(encounter_object.ratio) == 100
+
 	for i in range(runs):
-		sim = encounter(False, activity, ratio, mana_pool, healing, bol, mp5, crit, haste)
+		encounter_object.refresh()
+		sim = encounter(encounter_object)
 		tto.append(sim[0])
 		hld.append(sim[1])
 		if sim[2]:
@@ -233,9 +229,8 @@ def callback_fn(result, n, i, tto, hld, hps):
 	hps[n, i, 0] = result[2]
 	hps[n, i, 1] = result[3]
 
-def callback_er(result):
+def callback_err(result):
 	print(result)
-		
 
 def gathering_results():
 	runs = 5000
@@ -251,27 +246,30 @@ def gathering_results():
 	haste = 0
 	haste_step = 8
 	bol = 1
+	limit = 420
 
 	steps = 15
 	a_tto = np.zeros([5, steps, 2], float)
 	a_hld = np.zeros([5, steps, 2], float)
 	a_hps = np.zeros([5, steps, 2], float)
+
 	with Pool(4) as pool:
 		# +healing
 		for i in range(steps):
-			pool.apply_async(simulation, args=(runs, activity, ratio, mana_pool, healing + i * healing_step, bol, mp5, crit, haste), callback=partial(callback_fn, n=0, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+			pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing + i * healing_step, bol, mp5, crit, haste), callback=partial(callback_fn, n=0, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +mp5
 		for i in range(steps):
-			pool.apply_async(simulation, args=(runs, activity, ratio, mana_pool, healing, bol, mp5 + i * mp5_step, crit, haste), callback=partial(callback_fn, n=1, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+			pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, bol, mp5 + i * mp5_step, crit, haste), callback=partial(callback_fn, n=1, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +crit
 		for i in range(steps):
-			pool.apply_async(simulation, args=(runs, activity, ratio, mana_pool, healing, bol, mp5, crit + i * crit_step, haste), callback=partial(callback_fn, n=2, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+			pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, bol, mp5, crit + i * crit_step, haste), callback=partial(callback_fn, n=2, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +int
 		for i in range(steps):
 			pool.apply_async(simulation, args=(runs,
+				limit,
 				activity,
 				ratio,
 				mana_pool + i * 8 * 1.21 * 15,
@@ -280,11 +278,11 @@ def gathering_results():
 				mp5,
 				crit + i * 8 * 1.21 / 80 / 100,
 				haste),
-				callback=partial(callback_fn, n=3, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+				callback=partial(callback_fn, n=3, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +haste
 		for i in range(steps):
-			pool.apply_async(simulation, args=(runs, activity, ratio, mana_pool, healing, bol, mp5, crit, haste + i * haste_step), callback=partial(callback_fn, n=4, i=i, tto=a_tto, hld=a_hld, hps=a_hps))
+			pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, bol, mp5, crit, haste + i * haste_step), callback=partial(callback_fn, n=4, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		pool.close()
 		pool.join()
