@@ -4,24 +4,27 @@ def ana_helper(arr, steps):
 	baseline = arr[0, 0]
 	topline = arr[1, 0]
 	improvement = (topline - baseline) / steps / baseline * 100
-	baseline_ot = arr[0, 1]
-	topline_ot = arr[1, 1]
+	baseline_ot = arr[0, 1] * 100
+	topline_ot = arr[1, 1] * 100
 	
-	print(str(round(baseline, 2)) + "\t\t" + str(round(baseline_ot)) + "%")
-	print(str(round(topline, 2)) + "\t" + str(round(improvement, 3)) + "%\t"  + str(round(topline_ot)) + "%")
+	base_str = str(round(baseline)) + "\t\t" + str(round(baseline_ot)) + "%"
+	top_str = str(round(topline)) + "\t" + str(round(improvement, 3)) + "%\t"  + str(round(topline_ot)) + "%"
+
+	return (base_str, top_str)
 
 def analysis(arr, steps):
-	print("\nincreased healing")
-	ana_helper(arr[0], steps)
-	print("\nincreased mp5")
-	ana_helper(arr[1], steps)
-	print("\nincreased crit")
-	ana_helper(arr[2], steps)
-	print("\nincreased int")
-	ana_helper(arr[3], steps)
-	print("\nincreased haste")
-	ana_helper(arr[4], steps)
+	print("\nincreased healing\tincreased mp5\t\tincreased crit\t\tincreased int\t\tincreased haste")
+	heal = ana_helper(arr[0], steps)
+	mp5 = ana_helper(arr[1], steps)
+	crit = ana_helper(arr[2], steps)
+	intellect = ana_helper(arr[3], steps)
+	haste = ana_helper(arr[4], steps)
 
+	print(heal[0] + "\t" + mp5[0] + "\t" + crit[0] + "\t" + intellect[0] + "\t" + haste[0])
+
+	print(heal[1] + "\t" + mp5[1] + "\t" + crit[1] + "\t" + intellect[1] + "\t" + haste[1])
+
+	
 
 steps = 12
 l_tto = np.load("tto_15_steps_10000_iter.npy")
