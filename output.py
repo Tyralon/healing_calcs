@@ -1,22 +1,14 @@
-import random
-import statistics
 import numpy as np
 
 def ana_helper(arr, steps):
-	x = np.arange(0, steps)
-	y = np.zeros(steps)
-	for i in range(steps - 1):
-		y[i] = (arr[i+1, 0] - arr[i, 0]) / arr[i, 0]
-	for i in range(steps):
-		if i == 0:
-			print(str(round(arr[i, 0], 2)) + "\t\t" + str(round(arr[i, 1] * 100)) + "% ")
-		else:
-			print(str(round(arr[i, 0], 2)) + "\t" + str(round(y[i-1] * 100, 3)) + "%\t" + str(round(arr[i, 1] * 100)) + "% ")
-
-	z = np.polyfit(x, arr[:,0], 1)
-	print("OLS: " + str(round(z[0], 2)))
-	print("Average increase: " + str(round(np.mean(y) * 100, 3)) + "%")
-
+	baseline = arr[0, 0]
+	topline = arr[1, 0]
+	improvement = (topline - baseline) / steps / baseline * 100
+	baseline_ot = arr[0, 1]
+	topline_ot = arr[1, 1]
+	
+	print(str(round(baseline, 2)) + "\t\t" + str(round(baseline_ot)) + "%")
+	print(str(round(topline, 2)) + "\t" + str(round(improvement, 3)) + "%\t"  + str(round(topline_ot)) + "%")
 
 def analysis(arr, steps):
 	print("\nincreased healing")
@@ -31,13 +23,13 @@ def analysis(arr, steps):
 	ana_helper(arr[4], steps)
 
 
-
+steps = 12
 l_tto = np.load("tto_15_steps_10000_iter.npy")
 l_hps = np.load("hps_15_steps_10000_iter.npy")
 l_hld = np.load("hld_15_steps_10000_iter.npy")
 print("\nTTO")
-analysis(l_tto, 15)
+analysis(l_tto, steps)
 print("\nhealed")
-analysis(l_hld, 15)
+analysis(l_hld, steps)
 print("\nHPS")
-analysis(l_hps, 15)
+analysis(l_hps, steps)

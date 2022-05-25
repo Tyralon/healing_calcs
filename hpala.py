@@ -8,9 +8,9 @@ class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, healing, bol, mp5, base_crit, haste):
 		self.fol = Healing(513, 574, 1.5, 180, healing, 185 * bol, base_crit, haste, 1, False)
-		self.hl9 = Healing(1813, 2015, 2.5, 660, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
-		self.hl10 = Healing(1985, 2208, 2.5, 710, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
-		self.hl11 = Healing(2459, 2740, 2.5, 840, healing, 580 * bol, base_crit + 0.06, haste, 1, True)
+		self.hl9 = Healing(1813, 2015, 2.5, 660-34, healing, 580 * bol, base_crit + 0.06 + 0.05, haste, 1, True)
+		self.hl10 = Healing(1985, 2208, 2.5, 710-34, healing, 580 * bol, base_crit + 0.06 + 0.05, haste, 1, True)
+		self.hl11 = Healing(2459, 2740, 2.5, 840-34, healing, 580 * bol, base_crit + 0.06 + 0.05, haste, 1, True)
 		self.heals_list = [self.fol, self.hl9, self.hl10, self.hl11]
 		self.fol_mana = 180
 		self.time = 0.0
@@ -116,12 +116,12 @@ def encounter(enc):
 	ratio = enc.ratio
 	limit = enc.limit
 	limit_reached = enc.limit_reached
-	pot_cd = enc.pot_cd
-	pot_delay = enc.pot_delay
-	pot_last_use = enc.pot_last_use
-	rune_cd = enc.rune_cd
-	rune_delay = enc.rune_delay
-	rune_last_use = enc.rune_last_use
+#	pot_cd = enc.pot_cd
+#	pot_delay = enc.pot_delay
+#	pot_last_use = enc.pot_last_use
+#	rune_cd = enc.rune_cd
+#	rune_delay = enc.rune_delay
+#	rune_last_use = enc.rune_last_use
 	illu_factor = enc.illu_factor
 	favor = enc.favor
 	favor_cd = enc.favor_cd
@@ -141,25 +141,35 @@ def encounter(enc):
 		# adds mana from mp5
 		while last_tick < time:
 			last_tick += mana_tick
-			mana_pool += mp2
+			if (mana_pool) + mp2 > max_mana:
+				mana_pool = max_mana
+			else:
+				mana_pool += mp2
 
 		# whether to pot/rune
-		if (pot_last_use + pot_cd) <= time and time > pot_delay:
+#		if (pot_last_use + pot_cd) <= time and time > pot_delay:
 #			mana_pool += mana_pot_alch()
-			mana_pool += random.randint(900, 1500)
-			pot_last_use = time
-		if (rune_last_use + rune_cd) <= time and time > rune_delay:
+#			mana_pool += random.randint(900, 1500)
+#			pot_last_use = time
+#		if (rune_last_use + rune_cd) <= time and time > rune_delay:
 #			mana_pool += mana_rune()
-			mana_pool += random.randint(2520, 4200)
-			rune_last_use = time
+#			mana_pool += random.randint(2520, 4200)
+#			rune_last_use = time
 		
 		# which heal/rank to cast
 
 		spell = random.choices(heals_list, weights=ratio, k=1)[0]	
-		if spell.isHL and mana_pool >= spell.base_mana:
+		if mana_pool < spell.base_mana:
+			if (div_illu_last_use + div_illu_duration) >= time:
+				if  mana_pool < (spell.base_mana / 2):
+					break
+			else:
+				break
+
+		if spell.isHL:
 			grace = 1
-		else:
-			spell = fol
+#		else:
+#			spell = fol
 		spell.updateHaste(time, grace_last_use)
 
 		# whether to pop cooldowns
@@ -191,7 +201,8 @@ def encounter(enc):
 			grace_last_use = time
 
 		# adds delay for next cast
-		time += (1 - activity) / activity * spell.cast
+		delay_coeff = (1 - activity) / activity * spell.cast
+		time += delay_coeff * 2 * (1 - random.random())
 
 		# checks time limit
 #		if time >= limit:
@@ -233,22 +244,23 @@ def callback_err(result):
 	print(result)
 
 def gathering_results():
-	runs = 5000
-	activity = 0.75
-	ratio = (10, 45, 20, 25)
+	runs = 10000
+	activity = 0.80
+	ratio = (25, 20, 0, 55)
 	mana_pool = 16293
 	crit = 0.29127
-	crit_step = 0.0036
-	mp5 = 265
-	mp5_step = 3
+	crit_step = 0.00452 * 12
+	mp5 = 265 + (140 + 50) * 0.8
+	mp5_step = 4 * 12
+	int_step = 10 * 12
 	healing = 2074
-	healing_step = 18
+	healing_step = 22 * 12
 	haste = 0
-	haste_step = 8
+	haste_step = 10 * 12
 	bol = 1
-	limit = 420
+	limit = 300
 
-	steps = 15
+	steps = 2
 	a_tto = np.zeros([5, steps, 2], float)
 	a_hld = np.zeros([5, steps, 2], float)
 	a_hps = np.zeros([5, steps, 2], float)
@@ -272,11 +284,11 @@ def gathering_results():
 				limit,
 				activity,
 				ratio,
-				mana_pool + i * 8 * 1.21 * 15,
-				healing + i * 8 * 1.21 * 0.35,
+				mana_pool + i * int_step * 1.21 * 15,
+				healing + i * int_step * 1.21 * 0.35,
 				bol,
 				mp5,
-				crit + i * 8 * 1.21 / 80 / 100,
+				crit + i * int_step * 1.21 / 80 / 100,
 				haste),
 				callback=partial(callback_fn, n=3, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
