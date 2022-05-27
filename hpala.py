@@ -7,10 +7,10 @@ from functools import partial
 class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
-		self.fol = Healing(513, 574, 1.5, 180, 0, healing, fol_bol, base_crit, haste, 1, False)
-		self.hl9 = Healing(1813, 2015, 2.5, 660, reduction, healing, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
-		self.hl10 = Healing(1985, 2208, 2.5, 710, reduction, healing, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
-		self.hl11 = Healing(2459, 2740, 2.5, 840, reduction, healing, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
+		self.fol = Healing(513, 574, 1.5, 180, 0, healing + fol_heal, fol_bol, base_crit, haste, 1, False)
+		self.hl9 = Healing(1813, 2015, 2.5, 660, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
+		self.hl10 = Healing(1985, 2208, 2.5, 710, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
+		self.hl11 = Healing(2459, 2740, 2.5, 840, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
 		self.heals_list = [self.fol, self.hl9, self.hl10, self.hl11]
 		self.fol_mana = 180
 		self.time = 0.0
@@ -241,6 +241,16 @@ def callback_fn(result, n, i, tto, hld, hps):
 	hps[n, i, 0] = result[2]
 	hps[n, i, 1] = result[3]
 
+def callback_fn_multi(result, n, i, tto, hld, hps):
+	for m in range(5):
+		tto[m, i, 0] = result[0]
+		tto[m, i, 1] = result[3]
+		hld[m, i, 0] = result[1]
+		hld[m, i, 1] = result[3]
+		hps[m, i, 0] = result[2]
+		hps[m, i, 1] = result[3]
+
+
 def callback_err(result):
 	print(result)
 
@@ -260,8 +270,8 @@ def gathering_results():
 	haste_step = 10 * 12
 	fol_heal = 0
 	hl_heal = 0
-	fol_bol = 0
-	hl_bol = 0
+	fol_bol = 185
+	hl_bol = 580
 	reduction = 34
 	limit = 300
 
@@ -270,40 +280,38 @@ def gathering_results():
 	a_hld = np.zeros([5, steps, 2], float)
 	a_hps = np.zeros([5, steps, 2], float)
 
-	with Pool(4) as pool:
+	with Pool(6) as pool:
+		# no gems
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn_multi, n=0, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+
 		# +healing
-		for i in range(steps):
-			pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing + i * healing_step, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=0, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing + healing_step, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +mp5
-		for i in range(steps):
-			pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + i * mp5_step, crit, haste), callback=partial(callback_fn, n=1, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + mp5_step, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +crit
-		for i in range(steps):
-			pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit + i * crit_step, haste), callback=partial(callback_fn, n=2, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit + crit_step, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +int
-		for i in range(steps):
-			pool.apply_async(simulation, args=(runs,
-				limit,
-				activity,
-				ratio,
-				mana_pool + i * int_step * 1.21 * 15,
-				healing + i * int_step * 1.21 * 0.35,
-				fol_heal,
-				hl_heal,
-				fol_bol,
-				hl_bol,
-				reduction,
-				mp5,
-				crit + i * int_step * 1.21 / 80 / 100,
-				haste),
-				callback=partial(callback_fn, n=3, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs,
+			limit,
+			activity,
+			ratio,
+			mana_pool + int_step * 1.21 * 15,
+			healing + int_step * 1.21 * 0.35,
+			fol_heal,
+			hl_heal,
+			fol_bol,
+			hl_bol,
+			reduction,
+			mp5,
+			crit + int_step * 1.21 / 80 / 100,
+			haste),
+			callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +haste
-		for i in range(steps):
-			pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste + i * haste_step), callback=partial(callback_fn, n=4, i=i, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste + haste_step), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		pool.close()
 		pool.join()
@@ -337,25 +345,23 @@ def gathering_results_libram():
 	a_hld = np.zeros([5, steps, 2], float)
 	a_hps = np.zeros([5, steps, 2], float)
 
-	with Pool(4) as pool:
+	with Pool(6) as pool:
+		# no libram
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn_multi, n=0, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		
 		# Libram of Absolute Truth
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=0, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, 34, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# Libram of Souls Redeemed
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=1, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol + 60, hl_bol + 120, reduction, mp5, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# Book of Nagrand
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=2, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, 79, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# Libram of the Lightbringer
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=3, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, 87, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# Libram of Mending
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=4, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + 22, crit, haste), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		pool.close()

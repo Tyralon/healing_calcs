@@ -25,7 +25,7 @@ def analysis(arr, steps):
 	print(heal[1] + "\t" + mp5[1] + "\t" + crit[1] + "\t" + intellect[1] + "\t" + haste[1])
 
 def analysis_libram(arr, steps):
-	print("\nAbsolute Truth\t\tSouls Redeemed\t\tNagrand\t\tLightbringer\t\tMending")
+	print("\nAbsolute Truth\t\tSouls Redeemed\t\tNagrand\t\t\tLightbringer\t\tMending")
 	heal = ana_helper(arr[0], steps)
 	mp5 = ana_helper(arr[1], steps)
 	crit = ana_helper(arr[2], steps)
