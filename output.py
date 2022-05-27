@@ -24,15 +24,40 @@ def analysis(arr, steps):
 
 	print(heal[1] + "\t" + mp5[1] + "\t" + crit[1] + "\t" + intellect[1] + "\t" + haste[1])
 
-	
+def analysis_libram(arr, steps):
+	print("\nAbsolute Truth\t\tSouls Redeemed\t\tNagrand\t\tLightbringer\t\tMending")
+	heal = ana_helper(arr[0], steps)
+	mp5 = ana_helper(arr[1], steps)
+	crit = ana_helper(arr[2], steps)
+	intellect = ana_helper(arr[3], steps)
+	haste = ana_helper(arr[4], steps)
+
+	print(heal[0] + "\t" + mp5[0] + "\t" + crit[0] + "\t" + intellect[0] + "\t" + haste[0])
+
+	print(heal[1] + "\t" + mp5[1] + "\t" + crit[1] + "\t" + intellect[1] + "\t" + haste[1])
+
+
 
 steps = 12
-l_tto = np.load("tto_15_steps_10000_iter.npy")
-l_hps = np.load("hps_15_steps_10000_iter.npy")
-l_hld = np.load("hld_15_steps_10000_iter.npy")
+l_tto = np.load("tto_12_gems.npy")
+l_hps = np.load("hps_12_gems.npy")
+l_hld = np.load("hld_12_gems.npy")
 print("\nTTO")
 analysis(l_tto, steps)
 print("\nhealed")
 analysis(l_hld, steps)
 print("\nHPS")
 analysis(l_hps, steps)
+
+steps = 1
+libram_tto = np.load("tto_libram.npy")
+libram_hps = np.load("hps_libram.npy")
+libram_hld = np.load("hld_libram.npy")
+print("\nTTO")
+analysis_libram(libram_tto, steps)
+print("\nhealed")
+analysis_libram(libram_hld, steps)
+print("\nHPS")
+analysis_libram(libram_hps, steps)
+
+
