@@ -7,7 +7,7 @@ from functools import partial
 class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
-		self.fol = Healing(513, 574, 1.5, 180, 0, healing + fol_heal, fol_bol, base_crit, haste, 1, False)
+		self.fol = Healing(513, 574, 1.5, 180, 0, healing + fol_heal, fol_bol, base_crit, haste, 1.045065, False)
 		self.hl9 = Healing(1813, 2015, 2.5, 660, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
 		self.hl10 = Healing(1985, 2208, 2.5, 710, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
 		self.hl11 = Healing(2459, 2740, 2.5, 840, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
@@ -61,7 +61,7 @@ class Encounter:
 
 class Healing:
 	
-	def __init__(self, lower, upper, cast, mana, reduction, healing, flat_heal, crit, haste, coeff, hl):
+	def __init__(self, lower, upper, cast, mana, reduction, healing, flat_heal, crit, haste, percent, hl):
 		self.lower = lower
 		self.upper = upper
 		self.cast = cast
@@ -74,7 +74,7 @@ class Healing:
 		self.base_cast = cast
 		self.base_mana = mana
 		self.critted = False
-		self.coeff = coeff
+		self.percent = percent
 		self.isHL = hl
 
 	def updateHaste(self, t, last_grace):
@@ -86,10 +86,10 @@ class Healing:
 	def heal(self, favor):
 		if random.random() > (1 - self.crit - favor):
 			self.critted = True
-			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5) + self.flat_heal * self.coeff) * 1.12 * 1.5
+			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5) + self.flat_heal) * self.percent * 1.12 * 1.5
 		else:
 			self.critted = False
-			return random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5) + self.flat_heal * self.coeff) * 1.12
+			return random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5) + self.flat_heal) * self.percent * 1.12
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -256,12 +256,13 @@ def callback_err(result):
 
 def gathering_results():
 	runs = 10000
-	activity = 0.90
-	ratio = (30, 20, 0, 50)
-	mana_pool = 16293
+	activity = 0.95
+	ratio = (28, 16, 0, 56)
+	limit = 360
+	mana_pool = 16293 + 16000
 	crit = 0.32318
 	crit_step = 0.00452 * 12
-	mp5 = 239 + (100 + 50) * 0.8 # adding pot/rune as static mp5
+	mp5 = 269 + (100 + 50) * 0.8 # adding pot/rune as static mp5
 	mp5_step = 4 * 12
 	int_step = 10 * 12
 	healing = 2174
@@ -273,7 +274,6 @@ def gathering_results():
 	fol_bol = 185
 	hl_bol = 580
 	reduction = 34
-	limit = 300
 
 	steps = 2
 	a_tto = np.zeros([5, steps, 2], float)
@@ -321,12 +321,13 @@ def gathering_results():
 	
 def gathering_results_libram():
 	runs = 10000
-	activity = 0.90
-	ratio = (30, 20, 0, 50)
-	mana_pool = 16293
+	activity = 0.95
+	ratio = (28, 16, 0, 56)
+	limit = 360
+	mana_pool = 16293 + 16000 # every fight in SWP gives mana back
 	crit = 0.32318
 	crit_step = 0.00452 * 12
-	mp5 = 239 + (100 + 50) * 0.8 # adding pot/rune as static mp5
+	mp5 = 269 + (100 + 50) * 0.8 # adding pot/rune as static mp5
 	mp5_step = 4 * 12
 	int_step = 10 * 12
 	healing = 2174
@@ -338,7 +339,6 @@ def gathering_results_libram():
 	fol_bol = 185
 	hl_bol = 580
 	reduction = 0
-	limit = 300
 
 	steps = 2
 	a_tto = np.zeros([5, steps, 2], float)
