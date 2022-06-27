@@ -66,6 +66,19 @@ class Encounter:
 				not (self.div_illu_last_use + self.div_illu_duration) < time and \
 				not self.mana_pool >= ((spell.base_mana / 2) - spell.reduction)
 
+	def updateMana(self):
+		while self.last_tick < self.time:
+			self.last_tick += self.mana_tick
+			if (self.mana_pool) + self.mp2 > self.max_mana:
+				self.mana_pool = self.max_mana
+			else:
+				self.mana_pool += self.mp2
+
+	def limitReachedCheck(self):
+		if self.time >= self.limit:
+			self.limit_reached = True
+		
+
 class Healing:
 	
 	def __init__(self, lower, upper, cast, mana, reduction, healing, flat_heal, crit, haste, percent, hl):
@@ -147,12 +160,12 @@ def encounter(enc):
 
 	while mana_pool >= fol_mana and not limit_reached:
 		# adds mana from mp5
-		while last_tick < time:
-			last_tick += mana_tick
-			if (mana_pool) + mp2 > max_mana:
-				mana_pool = max_mana
-			else:
-				mana_pool += mp2
+#		while last_tick < time:
+#			last_tick += mana_tick
+#			if (mana_pool) + mp2 > max_mana:
+#				mana_pool = max_mana
+#			else:
+#				mana_pool += mp2
 
 		# whether to pot/rune
 #		if (pot_last_use + pot_cd) <= time and time > pot_delay:
@@ -215,10 +228,14 @@ def encounter(enc):
 		# adds delay for next cast
 		delay_coeff = (1 - activity) / activity * spell.cast
 		time += delay_coeff * 2 * (1 - random.random())
+		
+		enc.updateMana()
 
 		# checks time limit
-		if time >= limit:
-			limit_reached = True
+#		if time >= limit:
+#			limit_reached = True
+
+		enc.limitReachedCheck()
 
 	return (time, healed, limit_reached)
 
