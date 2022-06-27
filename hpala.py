@@ -58,6 +58,13 @@ class Encounter:
 		self.grace_last_use = -16
 		self.limit_reached = False
 
+	def pickSpell(self):
+		return random.choices(self.heals_list, weights=self.ratio, k=1)[0]
+
+	def areWeOOM(self, spell):
+		return not self.mana_pool >= spell.mana and \
+				not (self.div_illu_last_use + self.div_illu_duration) < time and \
+				not self.mana_pool >= ((spell.base_mana / 2) - spell.reduction)
 
 class Healing:
 	
@@ -86,10 +93,10 @@ class Healing:
 	def heal(self, favor):
 		if random.random() > (1 - self.crit - favor):
 			self.critted = True
-			return (random.randint(self.lower, self.upper) + (self.healing * self.base_cast / 3.5) + self.flat_heal) * self.percent * 1.12 * 1.5
+			return (random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5 + self.flat_heal) * 1.12)) * self.percent * 1.5
 		else:
 			self.critted = False
-			return random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5) + self.flat_heal) * self.percent * 1.12
+			return (random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5 + self.flat_heal) * 1.12)) * self.percent
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -159,13 +166,17 @@ def encounter(enc):
 		
 		# which heal/rank to cast
 
-		spell = random.choices(heals_list, weights=ratio, k=1)[0]	
-		if mana_pool < spell.mana:
-			if (div_illu_last_use + div_illu_duration) >= time:
-				if  mana_pool < ((spell.base_mana / 2) - spell.reduction):
-					break
-			else:
-				break
+		spell = enc.pickSpell()
+#		spell = random.choices(heals_list, weights=ratio, k=1)[0]	
+		if enc.areWeOOM(spell):
+			break
+
+#		if mana_pool < spell.mana:
+#			if (div_illu_last_use + div_illu_duration) >= time:
+#				if  mana_pool < ((spell.base_mana / 2) - spell.reduction):
+#					break
+#			else:
+#				break
 
 		if spell.isHL:
 			grace = 1
@@ -255,11 +266,11 @@ def callback_err(result):
 	print(result)
 
 def gathering_results():
-	runs = 10000
-	activity = 0.95
-	ratio = (28, 16, 0, 56)
-	limit = 360
-	mana_pool = 16293 + 16000
+	runs = 100
+	activity = 0.60
+	ratio = (65, 5, 0, 30)
+	limit = 600
+	mana_pool = 16293 + 12000
 	crit = 0.32318
 	crit_step = 0.00452 * 12
 	mp5 = 269 + (100 + 50) * 0.8 # adding pot/rune as static mp5
@@ -321,10 +332,10 @@ def gathering_results():
 	
 def gathering_results_libram():
 	runs = 10000
-	activity = 0.95
-	ratio = (28, 16, 0, 56)
-	limit = 360
-	mana_pool = 16293 + 16000 # every fight in SWP gives mana back
+	activity = 0.90
+	ratio = (38, 25, 0, 37)
+	limit = 480
+	mana_pool = 16293 + 36000
 	crit = 0.32318
 	crit_step = 0.00452 * 12
 	mp5 = 269 + (100 + 50) * 0.8 # adding pot/rune as static mp5
@@ -372,8 +383,33 @@ def gathering_results_libram():
 
 
 if __name__ == '__main__':
+	# magic numbers
+	runs = 10000
+	activity = 0.90
+	
+	# fol r7, hl r9, hl r10, hl r11
+	ratio = (38, 25, 0, 37)
+
+	# encounter limit in seconds
+	limit = 480
+	mana_pool = 16293
+	healing_step = 22
+	mp5_step = 4
+	crit_step = 0.00452
+	int_step = 10
+	haste_step = 10
+
+	healing = 2174
+	# adding pot/rune as static mp5
+	mp5 = 269 + (100 + 50) * 0.8
+	crit = 0.32318
+	haste = 0
+
+	fol_bol = 185
+	hl_bol = 580
+
 	gathering_results()
-	gathering_results_libram()
+#	gathering_results_libram()
 
 
 #a = encounter(True, 0.88, (28, 45, 23, 4), 12723, 2077, 163, 0.2278, 0)
