@@ -63,10 +63,10 @@ class Encounter:
 
 	def areWeOOM(self, spell):
 		return not self.mana_pool >= spell.mana and \
-				not (self.div_illu_last_use + self.div_illu_duration) < time and \
+				not (self.div_illu_last_use + self.div_illu_duration) < self.time and \
 				not self.mana_pool >= ((spell.base_mana / 2) - spell.reduction)
 
-	def updateMana(self):
+	def updateManaTick(self):
 		while self.last_tick < self.time:
 			self.last_tick += self.mana_tick
 			if (self.mana_pool) + self.mp2 > self.max_mana:
@@ -74,9 +74,38 @@ class Encounter:
 			else:
 				self.mana_pool += self.mp2
 
+	def returnMana(self, spell):
+		if (self.div_illu_last_use + self.div_illu_duration) >= self.time:
+			self.mana_pool -= (spell.getBaseManaCost() / 2) - spell.getManaCostReduction()
+		else:
+			self.mana_pool -= spell.getManaCost()
+		if spell.getCritted():
+			self.mana_pool += spell.getBaseManaCost() * self.illu_factor
+
+
 	def limitReachedCheck(self):
 		if self.time >= self.limit:
 			self.limit_reached = True
+
+	def popCooldowns(self):
+		if (self.favor_last_use + self.favor_cd) <= self.time and self.time > self.favor_delay:
+			self.favor = 1
+
+		if (self.div_illu_last_use + self.div_illu_cd) <= self.time and self.time > self.div_illu_delay:
+			self.div_illu_last_use = self.time
+
+	def updateDivineFavor(self):
+		if self.favor == 1:
+			self.favor = 0
+			self.favor_last_use = self.time
+
+	def updateLightsGrace(self, spell):
+		if spell.isHL:
+			self.grace_last_use = self.time
+
+	def castSpell(self, spell):
+		self.time += spell.getCastTime()
+		self.healed += spell.heal(self.favor)
 		
 
 class Healing:
@@ -97,8 +126,8 @@ class Healing:
 		self.percent = percent
 		self.isHL = hl
 
-	def updateHaste(self, t, last_grace):
-		if self.isHL and (last_grace + 15) >= t:
+	def updateHaste(self, time, grace_last_use):
+		if self.isHL and (grace_last_use + 15) >= time:
 			self.cast = (self.base_cast - 0.5) / ( 1 + self.haste / 1577)
 		else:
 			self.cast = self.base_cast / (1 + self.haste / 1577)
@@ -110,6 +139,21 @@ class Healing:
 		else:
 			self.critted = False
 			return (random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5 + self.flat_heal) * 1.12)) * self.percent
+
+	def getCastTime(self):
+		return self.cast
+
+	def getManaCost(self):
+		return self.mana
+
+	def getBaseManaCost(self):
+		return self.base_mana
+
+	def getManaCostReduction(self):
+		return self.reduction
+	
+	def getCritted(self):
+		return self.critted
 
 def mana_source(lower, upper, modifier):
 	return random.randint(lower,upper) * modifier
@@ -191,45 +235,54 @@ def encounter(enc):
 #			else:
 #				break
 
-		if spell.isHL:
-			grace = 1
+#		if spell.isHL:
+#			grace = 1
 #		else:
 #			spell = fol
-		spell.updateHaste(time, grace_last_use)
+		spell.updateHaste(enc.time, enc.grace_last_use)
 
+		enc.popCooldowns()
 		# whether to pop cooldowns
-		if (favor_last_use + favor_cd) <= time and time > favor_delay:
-			favor = 1
-		if (div_illu_last_use + div_illu_cd) <= time and time > div_illu_delay:
-			div_illu_last_use = time
+#		if (favor_last_use + favor_cd) <= time and time > favor_delay:
+#			favor = 1
+#		if (div_illu_last_use + div_illu_cd) <= time and time > div_illu_delay:
+#			div_illu_last_use = time
 
+		enc.castSpell(spell)
 
 		# casts the spell. updates total healing and time elapsed.
-		time += spell.cast
-		healed += spell.heal(favor)
+#		time += spell.cast
+#		healed += spell.heal(favor)
 		
+
+		enc.returnMana(spell)
+
 		# removes/adds mana from mana pool
-		if (div_illu_last_use + div_illu_duration) >= time:
-			mana_pool -= (spell.base_mana / 2) - spell.reduction
-		else:
-			mana_pool -= spell.mana
-		if spell.critted:
-			mana_pool += spell.base_mana * illu_factor
+#		if (div_illu_last_use + div_illu_duration) >= time:
+#			mana_pool -= (spell.base_mana / 2) - spell.reduction
+#		else:
+#			mana_pool -= spell.mana
+#		if spell.critted:
+#			mana_pool += spell.base_mana * illu_factor
+
+		enc.updateDivineFavor()
+
+		enc.updateLightsGrace(spell)
 
 		# puts DF on CD
-		if favor == 1:
-			favor = 0
-			favor_last_use = time
+#		if favor == 1:
+#			favor = 0
+#			favor_last_use = time
 		# updates last use for light's grace
-		if grace == 1:
-			grace = 0
-			grace_last_use = time
+#		if grace == 1:
+#			grace = 0
+#			grace_last_use = time
 
 		# adds delay for next cast
 		delay_coeff = (1 - activity) / activity * spell.cast
 		time += delay_coeff * 2 * (1 - random.random())
 		
-		enc.updateMana()
+		enc.updateManaTick()
 
 		# checks time limit
 #		if time >= limit:
