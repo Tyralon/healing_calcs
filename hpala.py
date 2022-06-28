@@ -107,6 +107,10 @@ class Encounter:
 		self.time += spell.getCastTime()
 		self.healed += spell.heal(self.favor)
 		
+	def addDelay(self, spell, activity):
+		return (1 - activity) / activity * spell.getCastTime()
+		#delay_coeff = (1 - activity) / activity * spell.getCastTime()
+		#return delay_coeff # * (2 * (1 - random.random()))
 
 class Healing:
 	
@@ -167,42 +171,42 @@ def mana_pot_alch():
 	return mana_source(1800, 3000, 1.4)
 
 def encounter(enc):
-	heals_list = enc.heals_list
-	fol_mana = enc.fol_mana
-	fol = heals_list[0]
-	time = enc.time
-	healed = enc.healed
-	mana_tick = enc.mana_tick
-	mp2 = enc.mp2
-	mana_pool = enc.mana_pool
-	max_mana = enc.max_mana
-	last_tick = enc.last_tick
-	activity = enc.activity
-	ratio = enc.ratio
-	limit = enc.limit
-	limit_reached = enc.limit_reached
+#	heals_list = enc.heals_list
+#	fol_mana = enc.fol_mana
+#	fol = heals_list[0]
+#	time = enc.time
+#	healed = enc.healed
+#	mana_tick = enc.mana_tick
+#	mp2 = enc.mp2
+#	mana_pool = enc.mana_pool
+#	max_mana = enc.max_mana
+#	last_tick = enc.last_tick
+#	activity = enc.activity
+#	ratio = enc.ratio
+#	limit = enc.limit
+#	limit_reached = enc.limit_reached
 #	pot_cd = enc.pot_cd
 #	pot_delay = enc.pot_delay
 #	pot_last_use = enc.pot_last_use
 #	rune_cd = enc.rune_cd
 #	rune_delay = enc.rune_delay
 #	rune_last_use = enc.rune_last_use
-	illu_factor = enc.illu_factor
-	favor = enc.favor
-	favor_cd = enc.favor_cd
-	favor_delay = enc.favor_delay
-	favor_last_use = enc.favor_last_use
-	div_illu_duration = enc.div_illu_duration
-	div_illu_cd = enc.div_illu_cd
-	div_illu_delay = enc.div_illu_delay
-	div_illu_last_use = enc.div_illu_last_use
-	grace = enc.grace
-	grace_effect = enc.grace_effect
-	grace_duration = enc.grace_duration
-	grace_last_use = enc.grace_last_use
+#	illu_factor = enc.illu_factor
+#	favor = enc.favor
+#	favor_cd = enc.favor_cd
+#	favor_delay = enc.favor_delay
+#	favor_last_use = enc.favor_last_use
+#	div_illu_duration = enc.div_illu_duration
+#	div_illu_cd = enc.div_illu_cd
+#	div_illu_delay = enc.div_illu_delay
+#	div_illu_last_use = enc.div_illu_last_use
+#	grace = enc.grace
+#	grace_effect = enc.grace_effect
+#	grace_duration = enc.grace_duration
+#	grace_last_use = enc.grace_last_use
 
 
-	while mana_pool >= fol_mana and not limit_reached:
+	while not enc.limit_reached:
 		# adds mana from mp5
 #		while last_tick < time:
 #			last_tick += mana_tick
@@ -239,7 +243,6 @@ def encounter(enc):
 #			grace = 1
 #		else:
 #			spell = fol
-		spell.updateHaste(enc.time, enc.grace_last_use)
 
 		enc.popCooldowns()
 		# whether to pop cooldowns
@@ -247,6 +250,8 @@ def encounter(enc):
 #			favor = 1
 #		if (div_illu_last_use + div_illu_cd) <= time and time > div_illu_delay:
 #			div_illu_last_use = time
+
+		spell.updateHaste(enc.time, enc.grace_last_use)
 
 		enc.castSpell(spell)
 
@@ -278,10 +283,12 @@ def encounter(enc):
 #			grace = 0
 #			grace_last_use = time
 
+
+		enc.time += enc.addDelay(spell, enc.activity)
 		# adds delay for next cast
-		delay_coeff = (1 - activity) / activity * spell.cast
-		time += delay_coeff * 2 * (1 - random.random())
-		
+#		delay_coeff = (1 - activity) / activity * spell.cast
+#		time += delay_coeff * 2 * (1 - random.random())
+
 		enc.updateManaTick()
 
 		# checks time limit
@@ -290,7 +297,7 @@ def encounter(enc):
 
 		enc.limitReachedCheck()
 
-	return (time, healed, limit_reached)
+	return (enc.time, enc.healed, enc.limit_reached)
 
 def simulation(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste):
 	tto = []
