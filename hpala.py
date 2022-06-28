@@ -12,7 +12,6 @@ class Encounter:
 		self.hl10 = Healing(1985, 2208, 2.5, 710, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
 		self.hl11 = Healing(2459, 2740, 2.5, 840, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
 		self.heals_list = [self.fol, self.hl9, self.hl10, self.hl11]
-		self.fol_mana = 180
 		self.time = 0.0
 		self.healed = 0
 		self.mana_tick = 2
@@ -24,12 +23,6 @@ class Encounter:
 		self.ratio = ratio
 		self.limit = limit
 		self.limit_reached = False
-		self.pot_cd = 120
-		self.pot_delay = 60
-		self.pot_last_use = self.pot_delay - self.pot_cd
-		self.rune_cd = 120
-		self.rune_delay = 60
-		self.rune_last_use = self.rune_delay - self.rune_cd
 		self.illu_factor = 0.6
 		self.favor = 0
 		self.favor_cd = 120
@@ -39,7 +32,6 @@ class Encounter:
 		self.div_illu_cd = 120
 		self.div_illu_delay = 60
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
-		self.grace = 0
 		self.grace_effect = 0.5
 		self.grace_duration = 15
 		self.grace_last_use = -16
@@ -54,7 +46,6 @@ class Encounter:
 		self.favor = 0
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
-		self.grace = 0
 		self.grace_last_use = -16
 		self.limit_reached = False
 
@@ -125,7 +116,7 @@ class Encounter:
 			if self.areWeOOM(spell):
 				break
 			self.popCooldowns()
-			spell.updateHaste(self.time, self.grace_last_use)
+			spell.updateHaste(self.time, self.grace_effect, self.grace_duration, self.grace_last_use)
 			self.castSpell(spell)
 			self.returnMana(spell)
 			self.updateDivineFavor()
@@ -153,9 +144,9 @@ class Healing:
 		self.percent = percent
 		self.isHL = hl
 
-	def updateHaste(self, time, grace_last_use):
-		if self.isHL and (grace_last_use + 15) >= time:
-			self.cast = (self.base_cast - 0.5) / ( 1 + self.haste / 1577)
+	def updateHaste(self, time, grace_effect, grace_duration grace_last_use):
+		if self.isHL and (grace_last_use + grace_duration) >= time:
+			self.cast = (self.base_cast - grace_effect) / ( 1 + self.haste / 1577)
 		else:
 			self.cast = self.base_cast / (1 + self.haste / 1577)
 	
@@ -181,146 +172,6 @@ class Healing:
 	
 	def getCritted(self):
 		return self.critted
-
-def mana_source(lower, upper, modifier):
-	return random.randint(lower,upper) * modifier
-
-# mana from dark rune or demonic rune
-def mana_rune():
-	return mana_source(900, 1500, 1)
-
-# mana from super mana pot with alchemist's stone
-def mana_pot_alch():
-	return mana_source(1800, 3000, 1.4)
-
-def encounter(enc):
-#	heals_list = enc.heals_list
-#	fol_mana = enc.fol_mana
-#	fol = heals_list[0]
-#	time = enc.time
-#	healed = enc.healed
-#	mana_tick = enc.mana_tick
-#	mp2 = enc.mp2
-#	mana_pool = enc.mana_pool
-#	max_mana = enc.max_mana
-#	last_tick = enc.last_tick
-#	activity = enc.activity
-#	ratio = enc.ratio
-#	limit = enc.limit
-#	limit_reached = enc.limit_reached
-#	pot_cd = enc.pot_cd
-#	pot_delay = enc.pot_delay
-#	pot_last_use = enc.pot_last_use
-#	rune_cd = enc.rune_cd
-#	rune_delay = enc.rune_delay
-#	rune_last_use = enc.rune_last_use
-#	illu_factor = enc.illu_factor
-#	favor = enc.favor
-#	favor_cd = enc.favor_cd
-#	favor_delay = enc.favor_delay
-#	favor_last_use = enc.favor_last_use
-#	div_illu_duration = enc.div_illu_duration
-#	div_illu_cd = enc.div_illu_cd
-#	div_illu_delay = enc.div_illu_delay
-#	div_illu_last_use = enc.div_illu_last_use
-#	grace = enc.grace
-#	grace_effect = enc.grace_effect
-#	grace_duration = enc.grace_duration
-#	grace_last_use = enc.grace_last_use
-
-
-	while not enc.limit_reached:
-		# adds mana from mp5
-#		while last_tick < time:
-#			last_tick += mana_tick
-#			if (mana_pool) + mp2 > max_mana:
-#				mana_pool = max_mana
-#			else:
-#				mana_pool += mp2
-
-		# whether to pot/rune
-#		if (pot_last_use + pot_cd) <= time and time > pot_delay:
-#			mana_pool += mana_pot_alch()
-#			mana_pool += random.randint(900, 1500)
-#			pot_last_use = time
-#		if (rune_last_use + rune_cd) <= time and time > rune_delay:
-#			mana_pool += mana_rune()
-#			mana_pool += random.randint(2520, 4200)
-#			rune_last_use = time
-		
-		# which heal/rank to cast
-
-		spell = enc.pickSpell()
-#		spell = random.choices(heals_list, weights=ratio, k=1)[0]	
-		if enc.areWeOOM(spell):
-			break
-
-#		if mana_pool < spell.mana:
-#			if (div_illu_last_use + div_illu_duration) >= time:
-#				if  mana_pool < ((spell.base_mana / 2) - spell.reduction):
-#					break
-#			else:
-#				break
-
-#		if spell.isHL:
-#			grace = 1
-#		else:
-#			spell = fol
-
-		enc.popCooldowns()
-		# whether to pop cooldowns
-#		if (favor_last_use + favor_cd) <= time and time > favor_delay:
-#			favor = 1
-#		if (div_illu_last_use + div_illu_cd) <= time and time > div_illu_delay:
-#			div_illu_last_use = time
-
-		spell.updateHaste(enc.time, enc.grace_last_use)
-
-		enc.castSpell(spell)
-
-		# casts the spell. updates total healing and time elapsed.
-#		time += spell.cast
-#		healed += spell.heal(favor)
-		
-
-		enc.returnMana(spell)
-
-		# removes/adds mana from mana pool
-#		if (div_illu_last_use + div_illu_duration) >= time:
-#			mana_pool -= (spell.base_mana / 2) - spell.reduction
-#		else:
-#			mana_pool -= spell.mana
-#		if spell.critted:
-#			mana_pool += spell.base_mana * illu_factor
-
-		enc.updateDivineFavor()
-
-		enc.updateLightsGrace(spell)
-
-		# puts DF on CD
-#		if favor == 1:
-#			favor = 0
-#			favor_last_use = time
-		# updates last use for light's grace
-#		if grace == 1:
-#			grace = 0
-#			grace_last_use = time
-
-
-		enc.time += enc.addDelay(spell, enc.activity)
-		# adds delay for next cast
-#		delay_coeff = (1 - activity) / activity * spell.cast
-#		time += delay_coeff * 2 * (1 - random.random())
-
-		enc.updateManaTick()
-
-		# checks time limit
-#		if time >= limit:
-#			limit_reached = True
-
-		enc.limitReachedCheck()
-
-	return (enc.time, enc.healed, enc.limit_reached)
 
 def simulation(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste):
 	tto = []
