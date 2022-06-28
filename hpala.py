@@ -82,7 +82,6 @@ class Encounter:
 		if spell.getCritted():
 			self.mana_pool += spell.getBaseManaCost() * self.illu_factor
 
-
 	def limitReachedCheck(self):
 		if self.time >= self.limit:
 			self.limit_reached = True
@@ -107,10 +106,34 @@ class Encounter:
 		self.time += spell.getCastTime()
 		self.healed += spell.heal(self.favor)
 		
-	def addDelay(self, spell, activity):
-		return (1 - activity) / activity * spell.getCastTime()
-		#delay_coeff = (1 - activity) / activity * spell.getCastTime()
+	def addDelay(self, spell):
+		self.time += (1 - self.activity) / self.activity * spell.getCastTime()
 		#return delay_coeff # * (2 * (1 - random.random()))
+	
+	def getTime(self):
+		return self.time
+
+	def getHealed(self):
+		return self.healed
+
+	def getLimitReached(self):
+		return self.limit_reached
+
+	def runEncounter(self):
+		while not self.limit_reached:
+			spell = self.pickSpell()
+			if self.areWeOOM(spell):
+				break
+			self.popCooldowns()
+			spell.updateHaste(self.time, self.grace_last_use)
+			self.castSpell(spell)
+			self.returnMana(spell)
+			self.updateDivineFavor()
+			self.updateLightsGrace(spell)
+			self.addDelay(spell)
+			self.updateManaTick()
+			self.limitReachedCheck()
+
 
 class Healing:
 	
@@ -309,10 +332,10 @@ def simulation(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_he
 
 	for i in range(runs):
 		encounter_object.refresh()
-		sim = encounter(encounter_object)
-		tto.append(sim[0])
-		hld.append(sim[1])
-		if sim[2]:
+		encounter_object.runEncounter()
+		tto.append(encounter_object.getTime())
+		hld.append(encounter_object.getHealed())
+		if encounter_object.getLimitReached():
 			over_limit += 1
 	
 	tto_median = statistics.median(tto)
