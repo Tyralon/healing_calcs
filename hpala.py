@@ -41,8 +41,6 @@ class Encounter:
 		self.healed = 0
 		self.mana_pool = self.max_mana
 		self.last_tick = self.time
-		self.pot_last_use = self.pot_delay - self.pot_cd
-		self.rune_last_use = self.rune_delay - self.rune_cd
 		self.favor = 0
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
@@ -143,12 +141,13 @@ class Healing:
 		self.critted = False
 		self.percent = percent
 		self.isHL = hl
+		self.hasteCoefficient = 1577
 
-	def updateHaste(self, time, grace_effect, grace_duration grace_last_use):
+	def updateHaste(self, time, grace_effect, grace_duration, grace_last_use):
 		if self.isHL and (grace_last_use + grace_duration) >= time:
-			self.cast = (self.base_cast - grace_effect) / ( 1 + self.haste / 1577)
+			self.cast = (self.base_cast - grace_effect) / ( 1 + self.haste / self.hasteCoefficient)
 		else:
-			self.cast = self.base_cast / (1 + self.haste / 1577)
+			self.cast = self.base_cast / (1 + self.haste / self.hasteCoefficient)
 	
 	def heal(self, favor):
 		if random.random() > (1 - self.crit - favor):
@@ -217,14 +216,14 @@ def callback_err(result):
 	print(result)
 
 def gathering_results():
-	runs = 100
-	activity = 0.60
-	ratio = (65, 5, 0, 30)
+	runs = 1000
+	activity = 0.90
+	ratio = (50, 21, 0, 29)
 	limit = 600
-	mana_pool = 16293 + 12000
+	mana_pool = 16293 + 36000
 	crit = 0.32318
 	crit_step = 0.00452 * 12
-	mp5 = 269 + (100 + 50) * 0.8 # adding pot/rune as static mp5
+	mp5 = 269 + (140 + 50) * 0.8 # adding pot/rune as static mp5
 	mp5_step = 4 * 12
 	int_step = 10 * 12
 	healing = 2174
@@ -282,14 +281,14 @@ def gathering_results():
 	np.save("hps_12_gems", a_hps)
 	
 def gathering_results_libram():
-	runs = 10000
+	runs = 1000
 	activity = 0.90
-	ratio = (38, 25, 0, 37)
-	limit = 480
+	ratio = (50, 21, 0, 29)
+	limit = 600
 	mana_pool = 16293 + 36000
 	crit = 0.32318
 	crit_step = 0.00452 * 12
-	mp5 = 269 + (100 + 50) * 0.8 # adding pot/rune as static mp5
+	mp5 = 269 + (140 + 50) * 0.8 # adding pot/rune as static mp5
 	mp5_step = 4 * 12
 	int_step = 10 * 12
 	healing = 2174
@@ -360,7 +359,7 @@ if __name__ == '__main__':
 	hl_bol = 580
 
 	gathering_results()
-#	gathering_results_libram()
+	gathering_results_libram()
 
 
 #a = encounter(True, 0.88, (28, 45, 23, 4), 12723, 2077, 163, 0.2278, 0)
