@@ -18,7 +18,7 @@ class Encounter:
 		self.mp2 = mp5 / 5 * 2
 		self.mana_pool = mana_pool
 		self.max_mana = mana_pool
-		self.last_tick = self.time
+		self.last_tick = 0.0
 		self.activity = activity
 		self.ratio = ratio
 		self.limit = limit
@@ -35,12 +35,13 @@ class Encounter:
 		self.grace_effect = 0.5
 		self.grace_duration = 15
 		self.grace_last_use = -16
+		self.delayCoefficient = (1 - activity) / activity
 
 	def refresh(self):
 		self.time = 0.0
 		self.healed = 0
 		self.mana_pool = self.max_mana
-		self.last_tick = self.time
+		self.last_tick = 0.0
 		self.favor = 0
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
@@ -50,26 +51,33 @@ class Encounter:
 	def pickSpell(self):
 		return random.choices(self.heals_list, weights=self.ratio, k=1)[0]
 
-	def areWeOOM(self, spell):
-		return not self.mana_pool >= spell.mana and \
-				not (self.div_illu_last_use + self.div_illu_duration) < self.time and \
-				not self.mana_pool >= ((spell.base_mana / 2) - spell.reduction)
+	def isDivineIlluminationActive(self):
+		return self.div_illu_last_use + self.div_illu_duration >= self.time
 
-	def updateManaTick(self):
+	def areWeOOM(self, spell):
+		if self.isDivineIlluminationActive():
+			temp_spell_cost = spell.getBaseManaCost() / 2 - spell.getManaCostReduction()
+		else:
+			temp_spell_cost = spell.getManaCost()
+
+		return self.mana_pool < temp_spell_cost
+
+	def updateManaTick(self, debug):
 		while self.last_tick < self.time:
 			self.last_tick += self.mana_tick
-			if (self.mana_pool) + self.mp2 > self.max_mana:
-				self.mana_pool = self.max_mana
-			else:
-				self.mana_pool += self.mp2
+			self.addMana(self.mp2, debug)
 
-	def returnMana(self, spell):
-		if (self.div_illu_last_use + self.div_illu_duration) >= self.time:
-			self.mana_pool -= (spell.getBaseManaCost() / 2) - spell.getManaCostReduction()
+	def addMana(self, amount, debug):
+		if self.mana_pool + amount > self.max_mana:
+			self.mana_pool = self.max_mana
 		else:
-			self.mana_pool -= spell.getManaCost()
+			self.mana_pool += amount
+			if debug:
+				print("Increment mana by: " + str(round(amount)))
+		
+	def returnMana(self, spell, debug):
 		if spell.getCritted():
-			self.mana_pool += spell.getBaseManaCost() * self.illu_factor
+			self.addMana(spell.getBaseManaCost() * self.illu_factor, debug)
 
 	def limitReachedCheck(self):
 		if self.time >= self.limit:
@@ -91,13 +99,40 @@ class Encounter:
 		if spell.isHL:
 			self.grace_last_use = self.time
 
-	def castSpell(self, spell):
-		self.time += spell.getCastTime()
-		self.healed += spell.heal(self.favor)
+	def incrementTime(self, spell, debug):
+		temp_time = spell.getCastTime()
+		self.time += temp_time
+		if debug:
+			print("Incremented time by: " + str(round(temp_time, 2)))
 		
-	def addDelay(self, spell):
-		self.time += (1 - self.activity) / self.activity * spell.getCastTime()
+	def incrementHealed(self, spell, debug):
+		temp_healed = spell.heal(self.favor)
+		self.healed += temp_healed
+		if debug:
+			print("Incremented healing done by: " + str(round(temp_healed)))
+		
+	def consumeMana(self, spell, debug):
+		if (self.div_illu_last_use + self.div_illu_duration) >= self.time:
+			temp_mana = spell.getBaseManaCost() / 2 - spell.getManaCostReduction()
+			self.mana_pool -= temp_mana
+		else:
+			temp_mana = spell.getManaCost()
+			self.mana_pool -= temp_mana
+		if debug:
+			print("Decrement mana by: " + str(round(temp_mana)))
+		
+
+	def castSpell(self, spell, debug):
+		self.incrementTime(spell, debug)
+		self.incrementHealed(spell, debug)
+		self.consumeMana(spell, debug)
+		
+	def addDelay(self, spell, debug):
+		temp_time = self.delayCoefficient * spell.getCastTime()
+		self.time += temp_time 
 		#return delay_coeff # * (2 * (1 - random.random()))
+		if debug:
+			print("Increment time by: " + str(round(temp_time, 2)))
 	
 	def getTime(self):
 		return self.time
@@ -108,21 +143,26 @@ class Encounter:
 	def getLimitReached(self):
 		return self.limit_reached
 
-	def runEncounter(self):
+	def runEncounter(self, debug):
 		while not self.limit_reached:
 			spell = self.pickSpell()
 			if self.areWeOOM(spell):
 				break
 			self.popCooldowns()
 			spell.updateHaste(self.time, self.grace_effect, self.grace_duration, self.grace_last_use)
-			self.castSpell(spell)
-			self.returnMana(spell)
+			self.castSpell(spell, debug)
+			self.returnMana(spell, debug)
 			self.updateDivineFavor()
 			self.updateLightsGrace(spell)
-			self.addDelay(spell)
-			self.updateManaTick()
+			self.addDelay(spell, debug)
+			self.updateManaTick(debug)
 			self.limitReachedCheck()
 
+			if debug:
+				print("Current mana pool: " + str(round(self.mana_pool)))
+				print("Elapsed time: " + str(round(self.time)) + "\n")
+
+		
 
 class Healing:
 	
@@ -182,7 +222,7 @@ def simulation(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_he
 
 	for i in range(runs):
 		encounter_object.refresh()
-		encounter_object.runEncounter()
+		encounter_object.runEncounter(False)
 		tto.append(encounter_object.getTime())
 		hld.append(encounter_object.getHealed())
 		if encounter_object.getLimitReached():
@@ -194,6 +234,13 @@ def simulation(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_he
 
 	return [tto_median, hld_median, hps_median, over_limit / runs]
 	
+def debug_run(limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste):
+
+	encounter_object = Encounter(limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste)
+	assert sum(encounter_object.ratio) == 100
+
+	encounter_object.runEncounter(True)
+
 def callback_fn(result, n, i, tto, hld, hps):
 	tto[n, i, 0] = result[0]
 	tto[n, i, 1] = result[3]
@@ -202,39 +249,27 @@ def callback_fn(result, n, i, tto, hld, hps):
 	hps[n, i, 0] = result[2]
 	hps[n, i, 1] = result[3]
 
-def callback_fn_multi(result, n, i, tto, hld, hps):
+def callback_fn_multi(result, tto, hld, hps):
 	for m in range(5):
-		tto[m, i, 0] = result[0]
-		tto[m, i, 1] = result[3]
-		hld[m, i, 0] = result[1]
-		hld[m, i, 1] = result[3]
-		hps[m, i, 0] = result[2]
-		hps[m, i, 1] = result[3]
+		tto[m, 0, 0] = result[0]
+		tto[m, 0, 1] = result[3]
+		hld[m, 0, 0] = result[1]
+		hld[m, 0, 1] = result[3]
+		hps[m, 0, 0] = result[2]
+		hps[m, 0, 1] = result[3]
 
 
 def callback_err(result):
 	print(result)
 
-def gathering_results():
-	runs = 1000
-	activity = 0.90
-	ratio = (50, 21, 0, 29)
-	limit = 600
-	mana_pool = 16293 + 36000
-	crit = 0.32318
-	crit_step = 0.00452 * 12
-	mp5 = 269 + (140 + 50) * 0.8 # adding pot/rune as static mp5
-	mp5_step = 4 * 12
-	int_step = 10 * 12
-	healing = 2174
-	healing_step = 22 * 12
-	haste = 0
-	haste_step = 10 * 12
-	fol_heal = 0
-	hl_heal = 0
+def gathering_results(runs, activity, ratio, limit, mana_pool, healing, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step):
+	num_gems = 12
 	fol_bol = 185
 	hl_bol = 580
-	reduction = 34
+	reduction = 0
+	loat = 34
+	fol_heal = 0
+	hl_heal = 0
 
 	steps = 2
 	a_tto = np.zeros([5, steps, 2], float)
@@ -243,36 +278,36 @@ def gathering_results():
 
 	with Pool(6) as pool:
 		# no gems
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn_multi, n=0, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste), callback=partial(callback_fn_multi, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +healing
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing + healing_step, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing + healing_step * num_gems, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +mp5
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + mp5_step, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5 + mp5_step * num_gems, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +crit
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit + crit_step, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit + crit_step * num_gems, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +int
 		pool.apply_async(simulation, args=(runs,
 			limit,
 			activity,
 			ratio,
-			mana_pool + int_step * 1.21 * 15,
-			healing + int_step * 1.21 * 0.35,
+			mana_pool + int_step * num_gems * 1.21 * 15,
+			healing + int_step * num_gems * 1.21 * 0.35,
 			fol_heal,
 			hl_heal,
 			fol_bol,
 			hl_bol,
-			reduction,
+			loat,
 			mp5,
-			crit + int_step * 1.21 / 80 / 100,
+			crit + int_step * num_gems * 1.21 / 80 / 100,
 			haste),
 			callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +haste
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste + haste_step), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste + haste_step * num_gems), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		pool.close()
 		pool.join()
@@ -280,86 +315,62 @@ def gathering_results():
 	np.save("hld_12_gems", a_hld)
 	np.save("hps_12_gems", a_hps)
 	
-def gathering_results_libram():
-	runs = 1000
-	activity = 0.90
-	ratio = (50, 21, 0, 29)
-	limit = 600
-	mana_pool = 16293 + 36000
-	crit = 0.32318
-	crit_step = 0.00452 * 12
-	mp5 = 269 + (140 + 50) * 0.8 # adding pot/rune as static mp5
-	mp5_step = 4 * 12
-	int_step = 10 * 12
-	healing = 2174
-	healing_step = 22 * 12
-	haste = 0
-	haste_step = 10 * 12
-	fol_heal = 0
-	hl_heal = 0
-	fol_bol = 185
-	hl_bol = 580
-	reduction = 0
+	b_tto = np.zeros([5, steps, 2], float)
+	b_hld = np.zeros([5, steps, 2], float)
+	b_hps = np.zeros([5, steps, 2], float)
 
-	steps = 2
-	a_tto = np.zeros([5, steps, 2], float)
-	a_hld = np.zeros([5, steps, 2], float)
-	a_hps = np.zeros([5, steps, 2], float)
-
-	with Pool(6) as pool:
+	with Pool(6) as pool2:
 		# no libram
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn_multi, n=0, i=0, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn_multi, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 		
 		# Libram of Absolute Truth
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, 34, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, 34, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of Souls Redeemed
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol + 60, hl_bol + 120, reduction, mp5, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol + 60, hl_bol + 120, reduction, mp5, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Book of Nagrand
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, 79, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, 79, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=2, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of the Lightbringer
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, 87, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, 87, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of Mending
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + 22, crit, haste), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + 22, crit, haste), callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
-		pool.close()
-		pool.join()
-	np.save("tto_libram", a_tto)
-	np.save("hld_libram", a_hld)
-	np.save("hps_libram", a_hps)
+		pool2.close()
+		pool2.join()
+	np.save("tto_libram", b_tto)
+	np.save("hld_libram", b_hld)
+	np.save("hps_libram", b_hps)
 
 
 if __name__ == '__main__':
 	# magic numbers
-	runs = 10000
+	runs = 1000
 	activity = 0.90
 	
 	# fol r7, hl r9, hl r10, hl r11
 	ratio = (38, 25, 0, 37)
-
 	# encounter limit in seconds
 	limit = 480
+	
 	mana_pool = 16293
+	extra_mana = 0
+	healing = 2174
+	# adding pot/rune as static mp5
+	mp5 = 269 + (140 + 50) * 0.8
+	crit = 0.32318
+	haste = 100
+
 	healing_step = 22
 	mp5_step = 4
 	crit_step = 0.00452
 	int_step = 10
 	haste_step = 10
 
-	healing = 2174
-	# adding pot/rune as static mp5
-	mp5 = 269 + (100 + 50) * 0.8
-	crit = 0.32318
-	haste = 0
+	gathering_results(runs, activity, ratio, limit, mana_pool + extra_mana, healing, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
 
-	fol_bol = 185
-	hl_bol = 580
-
-	gathering_results()
-	gathering_results_libram()
-
+#	debug_run(limit, activity, ratio, mana_pool + extra_mana, healing, 0, 0, 185, 580, 34, mp5, crit, haste)
 
 #a = encounter(True, 0.88, (28, 45, 23, 4), 12723, 2077, 163, 0.2278, 0)
