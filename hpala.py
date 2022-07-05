@@ -6,7 +6,7 @@ from functools import partial
 
 class Encounter:
 
-	def __init__(self, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
+	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
 		self.fol = Healing(513, 574, 1.5, 180, 0, healing + fol_heal, fol_bol, base_crit, haste, 1.045065, False)
 		self.hl9 = Healing(1813, 2015, 2.5, 660, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
 		self.hl10 = Healing(1985, 2208, 2.5, 710, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
@@ -18,6 +18,8 @@ class Encounter:
 		self.mp2 = mp5 / 5 * 2
 		self.mana_pool = mana_pool
 		self.max_mana = mana_pool
+		self.extra_mana = extra_mana
+		self.extra_mana_added = 0
 		self.last_tick = 0.0
 		self.activity = activity
 		self.ratio = ratio
@@ -41,6 +43,7 @@ class Encounter:
 		self.time = 0.0
 		self.healed = 0
 		self.mana_pool = self.max_mana
+		self.extra_mana_added = 0
 		self.last_tick = 0.0
 		self.favor = 0
 		self.favor_last_use = self.favor_delay - self.favor_cd
@@ -133,7 +136,12 @@ class Encounter:
 		#return delay_coeff # * (2 * (1 - random.random()))
 		if debug:
 			print("Increment time by: " + str(round(temp_time, 2)))
-	
+
+	def addExtraMana(self, amount, debug):
+		if self.mana_pool < amount and self.extra_mana_added < self.extra_mana:
+			self.addMana(amount, debug)
+			self.extra_mana_added += amount
+
 	def getTime(self):
 		return self.time
 
@@ -156,6 +164,7 @@ class Encounter:
 			self.updateLightsGrace(spell)
 			self.addDelay(spell, debug)
 			self.updateManaTick(debug)
+			self.addExtraMana(1000, debug)
 			self.limitReachedCheck()
 
 			if debug:
@@ -212,12 +221,12 @@ class Healing:
 	def getCritted(self):
 		return self.critted
 
-def simulation(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste):
+def simulation(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste):
 	tto = []
 	hld = []
 	over_limit = 0
 
-	encounter_object = Encounter(limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste)
+	encounter_object = Encounter(limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste)
 	assert sum(encounter_object.ratio) == 100
 
 	for i in range(runs):
@@ -262,7 +271,7 @@ def callback_fn_multi(result, tto, hld, hps):
 def callback_err(result):
 	print(result)
 
-def gathering_results(runs, activity, ratio, limit, mana_pool, healing, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step):
+def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, healing, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step):
 	num_gems = 12
 	fol_bol = 185
 	hl_bol = 580
@@ -278,16 +287,16 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, healing, mp5, cri
 
 	with Pool(6) as pool:
 		# no gems
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste), callback=partial(callback_fn_multi, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste), callback=partial(callback_fn_multi, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +healing
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing + healing_step * num_gems, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing + healing_step * num_gems, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +mp5
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5 + mp5_step * num_gems, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5 + mp5_step * num_gems, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +crit
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit + crit_step * num_gems, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit + crit_step * num_gems, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +int
 		pool.apply_async(simulation, args=(runs,
@@ -295,6 +304,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, healing, mp5, cri
 			activity,
 			ratio,
 			mana_pool + int_step * num_gems * 1.21 * 15,
+			extra_mana,
 			healing + int_step * num_gems * 1.21 * 0.35,
 			fol_heal,
 			hl_heal,
@@ -307,7 +317,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, healing, mp5, cri
 			callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +haste
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste + haste_step * num_gems), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste + haste_step * num_gems), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		pool.close()
 		pool.join()
@@ -321,22 +331,22 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, healing, mp5, cri
 
 	with Pool(6) as pool2:
 		# no libram
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn_multi, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn_multi, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 		
 		# Libram of Absolute Truth
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, 34, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, 34, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of Souls Redeemed
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol + 60, hl_bol + 120, reduction, mp5, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol + 60, hl_bol + 120, reduction, mp5, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Book of Nagrand
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, 79, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=2, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, 79, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=2, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of the Lightbringer
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, 87, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, 87, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of Mending
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + 22, crit, haste), callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + 22, crit, haste), callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		pool2.close()
 		pool2.join()
@@ -356,7 +366,7 @@ if __name__ == '__main__':
 	limit = 480
 	
 	mana_pool = 16293
-	extra_mana = 0
+	extra_mana = 36000
 	healing = 2174
 	# adding pot/rune as static mp5
 	mp5 = 269 + (140 + 50) * 0.8
@@ -369,7 +379,7 @@ if __name__ == '__main__':
 	int_step = 10
 	haste_step = 10
 
-	gathering_results(runs, activity, ratio, limit, mana_pool + extra_mana, healing, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
+	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, healing, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
 
 #	debug_run(limit, activity, ratio, mana_pool + extra_mana, healing, 0, 0, 185, 580, 34, mp5, crit, haste)
 
