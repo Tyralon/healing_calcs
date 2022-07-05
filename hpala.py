@@ -41,6 +41,7 @@ class Encounter:
 		self.beacon_duration = 60
 		self.beacon_mana_cost = 936
 		self.beacon_probability = 0.3
+		self.iol_activated = False
 		self.delayCoefficient = (1 - activity) / activity
 
 	def refresh(self):
@@ -54,6 +55,7 @@ class Encounter:
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
 		self.grace_last_use = -16
 		self.beacon_last_use = -61
+		self.iol_activated = False
 		self.limit_reached = False
 
 	def pickSpell(self):
@@ -111,7 +113,7 @@ class Encounter:
 			self.favor_last_use = self.time
 
 	def updateLightsGrace(self, spell):
-		if spell.healType == HealType.HL:
+		if spell.getHealType() == HealType.HL:
 			self.grace_last_use = self.time
 
 	def incrementTime(self, spell, debug):
@@ -135,7 +137,16 @@ class Encounter:
 			self.mana_pool -= temp_mana
 		if debug:
 			print("Decrement mana by: " + str(round(temp_mana)))
-		
+
+	def activateInfusionOfLight(self, spell):
+		if spell.getHealType() == HealType.HS and spell.getCritted:
+			self.iol_activated = True
+		self.hl.setExtraCrit(0.2)
+	
+	def deactivateInfusionOfLight(self, spell):
+		if self.iol_activated and (spell.getHealType() == HealType.FOL or spell.getHealType() == HealType.HL):
+			self.iol_activated = False
+		self.hl.setExtraCrit(0)
 
 	def castSpell(self, spell, debug):
 		self.incrementTime(spell, debug)
@@ -175,10 +186,12 @@ class Encounter:
 				break
 			self.popCooldowns()
 			spell.updateHaste(self.time, self.grace_effect, self.grace_duration, self.grace_last_use)
+			self.deactivateInfusionOfLight(spell)
 			self.castSpell(spell, debug)
 			self.returnMana(spell, debug)
 			self.updateDivineFavor()
 			self.updateLightsGrace(spell)
+			self.activateInfusionOfLight(spell)
 			self.addDelay(spell, debug)
 			self.updateManaTick(debug)
 			self.addExtraMana(1000, debug)
@@ -188,7 +201,6 @@ class Encounter:
 				print("Current mana pool: " + str(round(self.mana_pool)))
 				print("Elapsed time: " + str(round(self.time)) + "\n")
 
-		
 class HealType(Enum):
 	FOL = 0
 	HL = 1
@@ -205,6 +217,7 @@ class Healing:
 		self.healing = healing
 		self.flat_heal = flat_heal
 		self.crit = crit
+		self.extraCrit = 0
 		self.haste = haste
 		self.base_cast = cast
 		self.base_mana = mana
@@ -221,7 +234,7 @@ class Healing:
 			self.cast = self.base_cast / (1 + self.haste / self.hasteCoefficient)
 	
 	def heal(self, favor):
-		if random.random() > (1 - self.crit - favor):
+		if random.random() > (1 - self.crit + self.extraCrit - favor):
 			self.critted = True
 			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent * 1.5
 		else:
@@ -242,6 +255,12 @@ class Healing:
 	
 	def getCritted(self):
 		return self.critted
+
+	def setExtraCrit(self, value):
+		self.extraCrit = value
+
+	def getHealType(self):
+		return self.healType
 
 def simulation(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste):
 	tto = []
@@ -327,7 +346,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 			ratio,
 			mana_pool + int_step * num_gems * 1.21 * 15,
 			extra_mana,
-			healing + int_step * num_gems * 1.21 * 0.35,
+			healing + int_step * num_gems * 1.21 * 0.2,
 			fol_heal,
 			hl_heal,
 			fol_bol,
@@ -379,24 +398,24 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 
 if __name__ == '__main__':
 	# magic numbers
-	runs = 1000
+	runs = 2000
 	activity = 0.90
 	
 	# fol r7, hl r9, hl r10, hl r11
-	ratio = (55, 37, 8)
+	ratio = (60, 32, 8)
 	# encounter limit in seconds
 	limit = 480
 	
-	mana_pool = 16293
-	extra_mana = 0
-	spell_power = 1300
+	mana_pool = 16683
+	extra_mana = 2400
+	spell_power = 2353 * 0.53
 	# adding pot/rune as static mp5
-	mp5 = 269 + (140 + 50) * 0.8
+	mp5 = 244 * 1.25
 	crit = 0.32318
-	haste = 180
+	haste = 180 + 236
 
-	healing_step = 22
-	mp5_step = 4
+	healing_step = 12
+	mp5_step = 5
 	crit_step = 0.00452
 	int_step = 10
 	haste_step = 10
