@@ -7,9 +7,9 @@ from functools import partial
 class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
-		self.fol = Healing(588, 658, 1.5, 187, 0, healing + fol_heal, fol_bol, base_crit, haste, 1.045065, False)
+		self.fol = Healing(588, 658, 1.5, 187, 0, healing + fol_heal, 0, base_crit, haste, 1.045065, False)
 		self.hs = Healing(1258, 1362, 1.5, 481, reduction, healing, 0, base_crit + 0.06, haste, 1, False)
-		self.hl = Healing(2818, 3138, 2.5, 775, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
+		self.hl = Healing(2818, 3138, 2.5, 775, reduction, healing + hl_heal, 0, base_crit + 0.06 + 0.05, haste, 1, True)
 		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
 		self.healed = 0
@@ -277,8 +277,8 @@ def callback_err(result):
 
 def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, healing, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step):
 	num_gems = 12
-	fol_bol = 185
-	hl_bol = 580
+	fol_bol = 0
+	hl_bol = 0
 	reduction = 0
 	loat = 34
 	fol_heal = 0
@@ -341,16 +341,16 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, 34, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of Souls Redeemed
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol + 60, hl_bol + 120, reduction, mp5, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, 89, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Book of Nagrand
 		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, 79, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=2, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of the Lightbringer
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, 87, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, 47, fol_bol, hl_bol, reduction, mp5, crit, haste), callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# Libram of Mending
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + 22, crit, haste), callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5 + 28, crit, haste), callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		pool2.close()
 		pool2.join()
@@ -383,7 +383,7 @@ if __name__ == '__main__':
 	int_step = 10
 	haste_step = 10
 
-	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, healing, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
+	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
 
 #	debug_run(limit, activity, ratio, mana_pool + extra_mana, healing, 0, 0, 185, 580, 34, mp5, crit, haste)
 
