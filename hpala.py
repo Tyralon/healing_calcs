@@ -191,6 +191,7 @@ class Healing:
 		self.percent = percent
 		self.isHL = hl
 		self.hasteCoefficient = 1577
+		self.healingCoefficient = self.base_cast / 3.5
 
 	def updateHaste(self, time, grace_effect, grace_duration, grace_last_use):
 		if self.isHL and (grace_last_use + grace_duration) >= time:
@@ -201,10 +202,10 @@ class Healing:
 	def heal(self, favor):
 		if random.random() > (1 - self.crit - favor):
 			self.critted = True
-			return (random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5 + self.flat_heal) * 1.12)) * self.percent * 1.5
+			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent * 1.5
 		else:
 			self.critted = False
-			return (random.randint(self.lower, self.upper) + ((self.healing * self.base_cast / 3.5 + self.flat_heal) * 1.12)) * self.percent
+			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent
 
 	def getCastTime(self):
 		return self.cast
