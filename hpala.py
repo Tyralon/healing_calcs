@@ -3,13 +3,14 @@ import statistics
 import numpy as np
 from multiprocessing import Pool
 from functools import partial
+from enum import Enum
 
 class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
-		self.fol = Healing(588, 658, 1.5, 187, 0, healing + fol_heal, 0, base_crit, haste, 1.045065, False)
-		self.hs = Healing(1258, 1362, 1.5, 481, reduction, healing, 0, base_crit + 0.06, haste, 1, False)
-		self.hl = Healing(2818, 3138, 2.5, 775, reduction, healing + hl_heal, 0, base_crit + 0.06 + 0.05, haste, 1, True)
+		self.fol = Healing(588, 658, 1.5, 187, 0, healing + fol_heal, 0, base_crit, haste, 1.045065, HealType.FOL)
+		self.hs = Healing(1258, 1362, 1.5, 481, reduction, healing, 0, base_crit + 0.06, haste, 1, HealType.HS)
+		self.hl = Healing(2818, 3138, 2.5, 775, reduction, healing + hl_heal, 0, base_crit + 0.06 + 0.05, haste, 1, HealType.HL)
 		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
 		self.healed = 0
@@ -39,6 +40,7 @@ class Encounter:
 		self.beacon_last_use = -61
 		self.beacon_duration = 60
 		self.beacon_mana_cost = 936
+		self.beacon_probability = 0.3
 		self.delayCoefficient = (1 - activity) / activity
 
 	def refresh(self):
@@ -80,6 +82,9 @@ class Encounter:
 			self.mana_pool += amount
 			if debug:
 				print("Increment mana by: " + str(round(amount)))
+	
+	def removeMana(self, amount):
+		self.mana_pool -= amount
 		
 	def returnMana(self, spell, debug):
 		if spell.getCritted():
@@ -96,13 +101,17 @@ class Encounter:
 		if (self.div_illu_last_use + self.div_illu_cd) <= self.time and self.time > self.div_illu_delay:
 			self.div_illu_last_use = self.time
 
+		if (self.beacon_last_use + self.beacon_duration) <= self.time:
+			self.beacon_last_use = self.time
+			self.removeMana(self.beacon_mana_cost)
+
 	def updateDivineFavor(self):
 		if self.favor == 1:
 			self.favor = 0
 			self.favor_last_use = self.time
 
 	def updateLightsGrace(self, spell):
-		if spell.isHL:
+		if spell.healType == HealType.HL:
 			self.grace_last_use = self.time
 
 	def incrementTime(self, spell, debug):
@@ -111,9 +120,9 @@ class Encounter:
 		if debug:
 			print("Incremented time by: " + str(round(temp_time, 2)))
 		
-	def incrementHealed(self, spell, debug):
+	def incrementHealed(self, spell, multiplier, debug):
 		temp_healed = spell.heal(self.favor)
-		self.healed += temp_healed
+		self.healed += temp_healed * multiplier
 		if debug:
 			print("Incremented healing done by: " + str(round(temp_healed)))
 		
@@ -130,7 +139,12 @@ class Encounter:
 
 	def castSpell(self, spell, debug):
 		self.incrementTime(spell, debug)
-		self.incrementHealed(spell, debug)
+
+		if self.beacon_last_use + self.beacon_duration >= self.time and self.beacon_probability > random.random():
+			self.incrementHealed(spell, 2, debug)
+		else:
+			self.incrementHealed(spell, 1, debug)
+
 		self.consumeMana(spell, debug)
 		
 	def addDelay(self, spell, debug):
@@ -175,10 +189,14 @@ class Encounter:
 				print("Elapsed time: " + str(round(self.time)) + "\n")
 
 		
+class HealType(Enum):
+	FOL = 0
+	HL = 1
+	HS = 2
 
 class Healing:
 	
-	def __init__(self, lower, upper, cast, mana, reduction, healing, flat_heal, crit, haste, percent, hl):
+	def __init__(self, lower, upper, cast, mana, reduction, healing, flat_heal, crit, haste, percent, healType):
 		self.lower = lower
 		self.upper = upper
 		self.cast = cast
@@ -192,12 +210,12 @@ class Healing:
 		self.base_mana = mana
 		self.critted = False
 		self.percent = percent
-		self.isHL = hl
+		self.healType = healType
 		self.hasteCoefficient = 1577
 		self.healingCoefficient = self.base_cast / 3.5 / 0.53
 
 	def updateHaste(self, time, grace_effect, grace_duration, grace_last_use):
-		if self.isHL and (grace_last_use + grace_duration) >= time:
+		if self.healType == HealType.HL and (grace_last_use + grace_duration) >= time:
 			self.cast = (self.base_cast - grace_effect) / ( 1 + self.haste / self.hasteCoefficient)
 		else:
 			self.cast = self.base_cast / (1 + self.haste / self.hasteCoefficient)
