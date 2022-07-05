@@ -7,11 +7,10 @@ from functools import partial
 class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
-		self.fol = Healing(513, 574, 1.5, 180, 0, healing + fol_heal, fol_bol, base_crit, haste, 1.045065, False)
-		self.hl9 = Healing(1813, 2015, 2.5, 660, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
-		self.hl10 = Healing(1985, 2208, 2.5, 710, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
-		self.hl11 = Healing(2459, 2740, 2.5, 840, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
-		self.heals_list = [self.fol, self.hl9, self.hl10, self.hl11]
+		self.fol = Healing(588, 658, 1.5, 187, 0, healing + fol_heal, fol_bol, base_crit, haste, 1.045065, False)
+		self.hs = Healing(1258, 1362, 1.5, 481, reduction, healing, 0, base_crit + 0.06, haste, 1, False)
+		self.hl = Healing(2818, 3138, 2.5, 775, reduction, healing + hl_heal, hl_bol, base_crit + 0.06 + 0.05, haste, 1, True)
+		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
 		self.healed = 0
 		self.mana_tick = 2
@@ -25,7 +24,7 @@ class Encounter:
 		self.ratio = ratio
 		self.limit = limit
 		self.limit_reached = False
-		self.illu_factor = 0.6
+		self.illu_factor = 0.3
 		self.favor = 0
 		self.favor_cd = 120
 		self.favor_delay = 60
@@ -37,6 +36,9 @@ class Encounter:
 		self.grace_effect = 0.5
 		self.grace_duration = 15
 		self.grace_last_use = -16
+		self.beacon_last_use = -61
+		self.beacon_duration = 60
+		self.beacon_mana_cost = 936
 		self.delayCoefficient = (1 - activity) / activity
 
 	def refresh(self):
@@ -49,6 +51,7 @@ class Encounter:
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
 		self.grace_last_use = -16
+		self.beacon_last_use = -61
 		self.limit_reached = False
 
 	def pickSpell(self):
@@ -191,7 +194,7 @@ class Healing:
 		self.percent = percent
 		self.isHL = hl
 		self.hasteCoefficient = 1577
-		self.healingCoefficient = self.base_cast / 3.5
+		self.healingCoefficient = self.base_cast / 3.5 / 0.53
 
 	def updateHaste(self, time, grace_effect, grace_duration, grace_last_use):
 		if self.isHL and (grace_last_use + grace_duration) >= time:
@@ -362,17 +365,17 @@ if __name__ == '__main__':
 	activity = 0.90
 	
 	# fol r7, hl r9, hl r10, hl r11
-	ratio = (38, 25, 0, 37)
+	ratio = (55, 37, 8)
 	# encounter limit in seconds
 	limit = 480
 	
 	mana_pool = 16293
-	extra_mana = 36000
-	healing = 2174
+	extra_mana = 0
+	spell_power = 1300
 	# adding pot/rune as static mp5
 	mp5 = 269 + (140 + 50) * 0.8
 	crit = 0.32318
-	haste = 100
+	haste = 180
 
 	healing_step = 22
 	mp5_step = 4
