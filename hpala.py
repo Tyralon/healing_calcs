@@ -440,7 +440,7 @@ if __name__ == '__main__':
 	limit = 480
 	
 	mana_pool = 21349
-	extra_mana = 2400
+	extra_mana = 4300 * 1.25
 	spell_power = 1475
 	# adding pot/rune as static mp5
 	mp5_raidbuffs = 92 * 1.2 + 91
