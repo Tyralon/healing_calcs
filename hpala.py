@@ -302,6 +302,8 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 	loat = 34
 	fol_heal = 0
 	hl_heal = 0
+	holy_guidance = 0.2
+	int_crit_coeff = 1 / 80 / 100
 
 	steps = 2
 	a_tto = np.zeros([5, steps, 2], float)
@@ -328,14 +330,14 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 			ratio,
 			mana_pool + int_step * num_gems * 1.21 * 15,
 			extra_mana,
-			healing + int_step * num_gems * 1.21 * 0.2,
+			healing + int_step * num_gems * 1.21 * holy_guidance,
 			fol_heal,
 			hl_heal,
 			fol_bol,
 			hl_bol,
 			loat,
 			mp5,
-			crit + int_step * num_gems * 1.21 / 80 / 100,
+			crit + int_step * num_gems * 1.21 * int_crit_coeff,
 			haste),
 			callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
