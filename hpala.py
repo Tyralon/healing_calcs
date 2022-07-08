@@ -384,6 +384,7 @@ if __name__ == '__main__':
 	# magic numbers
 	runs = 2000
 	activity = 0.90
+	crit_rating = 1 / 22.1 / 100
 	
 	# fol r7, hl r9, hl r10, hl r11
 	ratio = (60, 32, 8)
@@ -400,9 +401,10 @@ if __name__ == '__main__':
 
 	healing_step = 12
 	mp5_step = 5
-	crit_step = 0.00452
+	crit_step = 10 * crit_rating
 	int_step = 10
 	haste_step = 10
+
 
 	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
 
