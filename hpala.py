@@ -72,25 +72,23 @@ class Encounter:
 
 		return self.mana_pool < temp_spell_cost
 
-	def updateManaTick(self, debug):
+	def updateManaTick(self):
 		while self.last_tick < self.time:
 			self.last_tick += self.mana_tick
-			self.addMana(self.mp2, debug)
+			self.addMana(self.mp2)
 
-	def addMana(self, amount, debug):
+	def addMana(self, amount):
 		if self.mana_pool + amount > self.max_mana:
 			self.mana_pool = self.max_mana
 		else:
 			self.mana_pool += amount
-			if debug:
-				print("Increment mana by: " + str(round(amount)))
 	
 	def removeMana(self, amount):
 		self.mana_pool -= amount
 		
-	def returnMana(self, spell, debug):
+	def returnMana(self, spell):
 		if spell.getCritted():
-			self.addMana(spell.getBaseManaCost() * self.illu_factor, debug)
+			self.addMana(spell.getBaseManaCost() * self.illu_factor)
 
 	def limitReachedCheck(self):
 		if self.time >= self.limit:
@@ -116,27 +114,17 @@ class Encounter:
 		if spell.getHealType() == HealType.HL:
 			self.grace_last_use = self.time
 
-	def incrementTime(self, spell, debug):
-		temp_time = spell.getCastTime()
-		self.time += temp_time
-		if debug:
-			print("Incremented time by: " + str(round(temp_time, 2)))
+	def incrementTime(self, spell):
+		self.time += spell.getCastTime()
 		
-	def incrementHealed(self, spell, multiplier, debug):
-		temp_healed = spell.heal(self.favor)
-		self.healed += temp_healed * multiplier
-		if debug:
-			print("Incremented healing done by: " + str(round(temp_healed)))
+	def incrementHealed(self, spell, multiplier):
+		self.healed += spell.heal(self.favor) * multiplier
 		
-	def consumeMana(self, spell, debug):
+	def consumeMana(self, spell):
 		if (self.div_illu_last_use + self.div_illu_duration) >= self.time:
-			temp_mana = spell.getBaseManaCost() / 2 - spell.getManaCostReduction()
-			self.mana_pool -= temp_mana
+			self.removeMana(spell.getBaseManaCost() / 2 - spell.getManaCostReduction())
 		else:
-			temp_mana = spell.getManaCost()
-			self.mana_pool -= temp_mana
-		if debug:
-			print("Decrement mana by: " + str(round(temp_mana)))
+			self.removeMana(spell.getManaCost())
 
 	def activateInfusionOfLight(self, spell):
 		if spell.getHealType() == HealType.HS and spell.getCritted:
@@ -148,26 +136,24 @@ class Encounter:
 			self.iol_activated = False
 		self.hl.setExtraCrit(0)
 
-	def castSpell(self, spell, debug):
-		self.incrementTime(spell, debug)
+	def castSpell(self, spell):
+		self.incrementTime(spell)
 
 		if self.beacon_last_use + self.beacon_duration >= self.time and self.beacon_probability > random.random():
-			self.incrementHealed(spell, 2, debug)
+			self.incrementHealed(spell, 2)
 		else:
-			self.incrementHealed(spell, 1, debug)
+			self.incrementHealed(spell, 1)
 
-		self.consumeMana(spell, debug)
+		self.consumeMana(spell)
 		
-	def addDelay(self, spell, debug):
+	def addDelay(self, spell):
 		temp_time = self.delayCoefficient * spell.getCastTime()
 		self.time += temp_time 
 		#return delay_coeff # * (2 * (1 - random.random()))
-		if debug:
-			print("Increment time by: " + str(round(temp_time, 2)))
 
-	def addExtraMana(self, amount, debug):
+	def addExtraMana(self, amount):
 		if self.mana_pool < amount and self.extra_mana_added < self.extra_mana:
-			self.addMana(amount, debug)
+			self.addMana(amount)
 			self.extra_mana_added += amount
 
 	def getTime(self):
@@ -179,7 +165,7 @@ class Encounter:
 	def getLimitReached(self):
 		return self.limit_reached
 
-	def runEncounter(self, debug):
+	def runEncounter(self):
 		while not self.limit_reached:
 			spell = self.pickSpell()
 			if self.areWeOOM(spell):
@@ -187,19 +173,15 @@ class Encounter:
 			self.popCooldowns()
 			spell.updateHaste(self.time, self.grace_effect, self.grace_duration, self.grace_last_use)
 			self.deactivateInfusionOfLight(spell)
-			self.castSpell(spell, debug)
-			self.returnMana(spell, debug)
+			self.castSpell(spell)
+			self.returnMana(spell)
 			self.updateDivineFavor()
 			self.updateLightsGrace(spell)
 			self.activateInfusionOfLight(spell)
-			self.addDelay(spell, debug)
-			self.updateManaTick(debug)
-			self.addExtraMana(1000, debug)
+			self.addDelay(spell)
+			self.updateManaTick()
+			self.addExtraMana(1000)
 			self.limitReachedCheck()
-
-			if debug:
-				print("Current mana pool: " + str(round(self.mana_pool)))
-				print("Elapsed time: " + str(round(self.time)) + "\n")
 
 class HealType(Enum):
 	FOL = 0
@@ -272,7 +254,7 @@ def simulation(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol
 
 	for i in range(runs):
 		encounter_object.refresh()
-		encounter_object.runEncounter(False)
+		encounter_object.runEncounter()
 		tto.append(encounter_object.getTime())
 		hld.append(encounter_object.getHealed())
 		if encounter_object.getLimitReached():
