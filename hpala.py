@@ -216,12 +216,16 @@ class Healing:
 			self.cast = self.base_cast / (1 + self.haste / self.hasteCoefficient)
 	
 	def heal(self, favor):
+		if self.healType == HealType.FOL:
+			iol_factor = 1 + 0.7 * 0.4
+		else:
+			iol_factor = 1
 		if random.random() > (1 - self.crit + self.extraCrit - favor):
 			self.critted = True
-			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent * 1.5
+			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent * iol_factor * 1.5
 		else:
 			self.critted = False
-			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent
+			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * iol_factor * self.percent
 
 	def getCastTime(self):
 		return self.cast
