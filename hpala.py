@@ -266,12 +266,6 @@ def simulation(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol
 
 	return [tto_median, hld_median, hps_median, over_limit / runs]
 	
-def debug_run(limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste):
-
-	encounter_object = Encounter(limit, activity, ratio, mana_pool, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste)
-	assert sum(encounter_object.ratio) == 100
-
-	encounter_object.runEncounter(True)
 
 def callback_fn(result, n, i, tto, hld, hps):
 	tto[n, i, 0] = result[0]
