@@ -9,7 +9,7 @@ class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
 		self.fol = Healing(785, 879, 1.5, 288, 0, healing + fol_heal, 0, base_crit, haste, 1.045065, HealType.FOL)
-		self.hs = Healing(2401, 2599, 1.5, 741, reduction, healing, 0, base_crit + 0.06, haste, 1, HealType.HS)
+		self.hs = Healing(2401, 2599, 1.5, 741, 0, healing, 0, base_crit + 0.06, haste, 1, HealType.HS)
 		self.hl = Healing(4888, 5444, 2.5, 1193, reduction, healing + hl_heal, 0, base_crit + 0.06 + 0.05, haste, 1, HealType.HL)
 		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
@@ -27,23 +27,36 @@ class Encounter:
 		self.limit_reached = False
 		self.illu_factor = 0.3
 		self.favor = 0
+		self.favor_mana_cost = 123
 		self.favor_cd = 120
-		self.favor_delay = 60
+		self.favor_delay = 30
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_duration = 15
 		self.div_illu_cd = 120
-		self.div_illu_delay = 60
+		self.div_illu_delay = 30
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
 		self.grace_effect = 0.5
 		self.grace_duration = 15
-		self.grace_last_use = -16
-		self.beacon_last_use = -61
+		self.grace_last_use = self.grace_duration - 1
 		self.beacon_duration = 60
-		self.beacon_mana_cost = 936
+		self.beacon_last_use = self.beacon_duration - 1
+		self.beacon_mana_cost = 1440
 		self.beacon_probability = 0.3
 		self.iol_activated = False
 		self.sacred_shield_interval = 9
-		self.sacred_shield_last_proc = -10
+		self.sacred_shield_last_proc = self.sacred_shield_interval - 1
+		self.sacred_shield_duration = 60
+		self.sacred_shield_last_use = self.sacred_shield_duration - 1
+		self.sacred_shield_mana_cost = 494
+		self.wrath_cd = 180
+		self.wrath_delay = 30
+		self.wrath_last_use = self.wrath_delay - self.wrath_cd
+		self.wrath_duration = 20
+		self.wrath_mana_cost = 329
+		self.divine_plea_cd = 60
+		self.divine_plea_delay = 60
+		self.divine_plea_last_use = self.divine_plea_delay - self.divine_plea_cd
+		self.divine_plea_duration = 15
 		self.delayCoefficient = (1 - activity) / activity
 		self.spellPower = healing
 
@@ -56,9 +69,11 @@ class Encounter:
 		self.favor = 0
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
-		self.grace_last_use = -16
-		self.beacon_last_use = -61
-		self.sacred_shield_last_proc = -10
+		self.grace_last_use = self.grace_duration - 1
+		self.beacon_last_use = self.beacon_duration - 1
+		self.sacred_shield_last_proc = self.sacred_shield_interval - 1
+		self.sacred_shield_last_use = self.sacred_shield_duration - 1
+		self.wrath_last_use = self.wrath_delay - self.wrath_cd
 		self.iol_activated = False
 		self.limit_reached = False
 
@@ -101,6 +116,7 @@ class Encounter:
 	def popCooldowns(self):
 		if (self.favor_last_use + self.favor_cd) <= self.time and self.time > self.favor_delay:
 			self.favor = 1
+			self.removeMana(self.favor_mana_cost)
 
 		if (self.div_illu_last_use + self.div_illu_cd) <= self.time and self.time > self.div_illu_delay:
 			self.div_illu_last_use = self.time
@@ -108,6 +124,14 @@ class Encounter:
 		if (self.beacon_last_use + self.beacon_duration) <= self.time:
 			self.beacon_last_use = self.time
 			self.removeMana(self.beacon_mana_cost)
+
+		if (self.sacred_shield_last_use + self.sacred_shield_duration) <= self.time:
+			self.sacred_shield_last_use = self.time
+			self.removeMana(self.sacred_shield_mana_cost)
+
+		if (self.wrath_last_use + self.wrath_duration) <= self.time:
+			self.wrath_last_use = self.time
+			self.removeMana(self.wrath_mana_cost)
 
 	def updateDivineFavor(self):
 		if self.favor == 1:
@@ -154,10 +178,20 @@ class Encounter:
 	def castSpell(self, spell):
 		self.incrementTime(spell)
 
-		if self.beacon_last_use + self.beacon_duration >= self.time and self.beacon_probability > random.random():
-			self.incrementHealed(spell, 2)
+		if self.wrath_last_use + self.wrath_duration >= self.time:
+			wrathMultiplier = 1.2
 		else:
-			self.incrementHealed(spell, 1)
+			wrathMultiplier = 1
+
+		if self.divine_plea_last_use + self.divine_plea_duration >= self.time:
+			pleaMultiplier = 0.5
+		else:
+			pleaMultiplier = 1
+
+		if self.beacon_last_use + self.beacon_duration >= self.time and self.beacon_probability > random.random():
+			self.incrementHealed(spell, 2 * wrathMultiplier * pleaMultiplier)
+		else:
+			self.incrementHealed(spell, 1 * wrathMultiplier * pleaMultiplier)
 
 		self.consumeMana(spell)
 		
@@ -222,7 +256,7 @@ class Healing:
 		self.critted = False
 		self.percent = percent
 		self.healType = healType
-		self.hasteCoefficient = 1577
+		self.hasteCoefficient = 2523
 		self.healingCoefficient = self.base_cast / 3.5 / 0.53
 
 	def updateHaste(self, time, grace_effect, grace_duration, grace_last_use):
@@ -317,7 +351,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 	fol_heal = 0
 	hl_heal = 0
 	holy_guidance = 0.2
-	int_crit_coeff = 1 / 80 / 100
+	int_crit_coeff = 1 / 200 / 100
 
 	steps = 2
 	a_tto = np.zeros([5, steps, 2], float)
@@ -398,26 +432,27 @@ if __name__ == '__main__':
 	# magic numbers
 	runs = 2000
 	activity = 0.90
-	crit_rating = 1 / 22.1 / 100
+	crit_rating = 1 / 45 / 100
 	
 	# fol r7, hl r9, hl r10, hl r11
-	ratio = (60, 32, 8)
+	ratio = (65, 27, 8)
 	# encounter limit in seconds
 	limit = 480
 	
-	mana_pool = 16683
+	mana_pool = 21349
 	extra_mana = 2400
-	spell_power = 2353 * 0.53
+	spell_power = 1475
 	# adding pot/rune as static mp5
-	mp5 = 244 * 1.25
-	crit = 0.32318
-	haste = 180 + 236
+	mp5_raidbuffs = 92 * 1.2 + 91
+	mp5 = 159 + mp5_raidbuffs
+	crit = 0.198639
+	haste = 176 + 378
 
-	healing_step = 12
-	mp5_step = 5
-	crit_step = 10 * crit_rating
-	int_step = 10
-	haste_step = 10
+	healing_step = 19
+	mp5_step = 8
+	crit_step = 16 * crit_rating
+	int_step = 16
+	haste_step = 16
 
 
 	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
