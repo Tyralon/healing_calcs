@@ -42,7 +42,10 @@ class Encounter:
 		self.beacon_mana_cost = 936
 		self.beacon_probability = 0.3
 		self.iol_activated = False
+		self.sacred_shield_interval = 9
+		self.sacred_shield_last_proc = -10
 		self.delayCoefficient = (1 - activity) / activity
+		self.spellPower = healing
 
 	def refresh(self):
 		self.time = 0.0
@@ -55,6 +58,7 @@ class Encounter:
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
 		self.grace_last_use = -16
 		self.beacon_last_use = -61
+		self.sacred_shield_last_proc = -10
 		self.iol_activated = False
 		self.limit_reached = False
 
@@ -129,12 +133,23 @@ class Encounter:
 	def activateInfusionOfLight(self, spell):
 		if spell.getHealType() == HealType.HS and spell.getCritted:
 			self.iol_activated = True
-		self.hl.setExtraCrit(0.2)
+			self.hl.setExtraCrit(0)
 	
 	def deactivateInfusionOfLight(self, spell):
 		if self.iol_activated and (spell.getHealType() == HealType.FOL or spell.getHealType() == HealType.HL):
 			self.iol_activated = False
-		self.hl.setExtraCrit(0)
+			self.hl.setExtraCrit(0)
+
+	def activateSacredShield(self, spell):
+		if self.sacred_shield_last_proc + self.sacred_shield_interval <= self.time:
+			self.sacred_shield_last_proc = self.time
+			self.fol.setExtraCrit(0)
+
+			self.healed += (1000 + self.spellPower * 0.75) * 1.2
+
+	def deactivateSacredShield(self, spell):
+		if spell.getHealType() == HealType.FOL:
+			self.fol.setExtraCrit(0)
 
 	def castSpell(self, spell):
 		self.incrementTime(spell)
@@ -147,8 +162,7 @@ class Encounter:
 		self.consumeMana(spell)
 		
 	def addDelay(self, spell):
-		temp_time = self.delayCoefficient * spell.getCastTime()
-		self.time += temp_time 
+		self.time += self.delayCoefficient * spell.getCastTime()
 		#return delay_coeff # * (2 * (1 - random.random()))
 
 	def addExtraMana(self, amount):
@@ -173,11 +187,13 @@ class Encounter:
 			self.popCooldowns()
 			spell.updateHaste(self.time, self.grace_effect, self.grace_duration, self.grace_last_use)
 			self.deactivateInfusionOfLight(spell)
+			self.activateSacredShield(spell)
 			self.castSpell(spell)
 			self.returnMana(spell)
 			self.updateDivineFavor()
 			self.updateLightsGrace(spell)
 			self.activateInfusionOfLight(spell)
+			self.deactivateSacredShield(spell)
 			self.addDelay(spell)
 			self.updateManaTick()
 			self.addExtraMana(1000)
@@ -220,12 +236,12 @@ class Healing:
 			iol_factor = 1 + 0.7 * 0.4
 		else:
 			iol_factor = 1
-		if random.random() > (1 - self.crit + self.extraCrit - favor):
+		if random.random() > (1 - self.crit - self.extraCrit - favor):
 			self.critted = True
 			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent * iol_factor * 1.5
 		else:
 			self.critted = False
-			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * iol_factor * self.percent
+			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent * iol_factor 
 
 	def getCastTime(self):
 		return self.cast
