@@ -157,7 +157,7 @@ class Encounter:
 	def activateInfusionOfLight(self, spell):
 		if spell.getHealType() == HealType.HS and spell.getCritted:
 			self.iol_activated = True
-			self.hl.setExtraCrit(0)
+			self.hl.setExtraCrit(0.2)
 	
 	def deactivateInfusionOfLight(self, spell):
 		if self.iol_activated and (spell.getHealType() == HealType.FOL or spell.getHealType() == HealType.HL):
@@ -167,7 +167,7 @@ class Encounter:
 	def activateSacredShield(self, spell):
 		if self.sacred_shield_last_proc + self.sacred_shield_interval <= self.time:
 			self.sacred_shield_last_proc = self.time
-			self.fol.setExtraCrit(0)
+			self.fol.setExtraCrit(0.5)
 
 			self.healed += (1000 + self.spellPower * 0.75) * 1.2
 
@@ -430,7 +430,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 
 if __name__ == '__main__':
 	# magic numbers
-	runs = 2000
+	runs = 10000
 	activity = 0.90
 	crit_rating = 1 / 45 / 100
 	
