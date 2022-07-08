@@ -8,9 +8,9 @@ from enum import Enum
 class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
-		self.fol = Healing(588, 658, 1.5, 187, 0, healing + fol_heal, 0, base_crit, haste, 1.045065, HealType.FOL)
-		self.hs = Healing(1258, 1362, 1.5, 481, reduction, healing, 0, base_crit + 0.06, haste, 1, HealType.HS)
-		self.hl = Healing(2818, 3138, 2.5, 775, reduction, healing + hl_heal, 0, base_crit + 0.06 + 0.05, haste, 1, HealType.HL)
+		self.fol = Healing(785, 879, 1.5, 288, 0, healing + fol_heal, 0, base_crit, haste, 1.045065, HealType.FOL)
+		self.hs = Healing(2401, 2599, 1.5, 741, reduction, healing, 0, base_crit + 0.06, haste, 1, HealType.HS)
+		self.hl = Healing(4888, 5444, 2.5, 1193, reduction, healing + hl_heal, 0, base_crit + 0.06 + 0.05, haste, 1, HealType.HL)
 		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
 		self.healed = 0
