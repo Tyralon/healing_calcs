@@ -15,7 +15,7 @@ class Encounter:
 		self.time = 0.0
 		self.healed = 0
 		self.mana_tick = 2
-		self.mp2 = mp5 / 5 * 2
+		self.mp2 = mp5 / 5 * 2 + mana_pool * 0.25 / 30
 		self.mana_pool = mana_pool
 		self.max_mana = mana_pool
 		self.extra_mana = extra_mana
