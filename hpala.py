@@ -8,14 +8,14 @@ from enum import Enum
 class Encounter:
 
 	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
-		self.fol = Healing(785, 879, 1.5, 288, 0, healing + fol_heal, 0, base_crit, haste, 1.045065, HealType.FOL)
+		self.fol = Healing(785, 879, 1.5, 288, 0, healing + fol_heal, 0, base_crit, haste, 1, HealType.FOL)
 		self.hs = Healing(2401, 2599, 1.5, 741, 0, healing, 0, base_crit + 0.06, haste, 1, HealType.HS)
-		self.hl = Healing(4888, 5444, 2.5, 1193, reduction, healing + hl_heal, 0, base_crit + 0.06 + 0.05, haste, 1, HealType.HL)
+		self.hl = Healing(4888, 5444, 2.5, 1193, reduction, healing + hl_heal, 0, base_crit + 0.06, haste, 1, HealType.HL)
 		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
 		self.healed = 0
 		self.mana_tick = 2
-		self.mp2 = mp5 / 5 * 2 + mana_pool * 0.25 / 30
+		self.mp2 = mp5 / 5 * 2 + mana_pool * 0.25 / 30 * 0.75
 		self.mana_pool = mana_pool
 		self.max_mana = mana_pool
 		self.extra_mana = extra_mana
@@ -29,27 +29,27 @@ class Encounter:
 		self.favor = 0
 		self.favor_mana_cost = 123
 		self.favor_cd = 120
-		self.favor_delay = 30
+		self.favor_delay = 20
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_duration = 15
 		self.div_illu_cd = 120
-		self.div_illu_delay = 30
+		self.div_illu_delay = 20
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
 		self.grace_effect = 0.5
 		self.grace_duration = 15
-		self.grace_last_use = self.grace_duration - 1
+		self.grace_last_use = -1 * self.grace_duration - 1
 		self.beacon_duration = 60
-		self.beacon_last_use = self.beacon_duration - 1
+		self.beacon_last_use = -1 * self.beacon_duration - 1
 		self.beacon_mana_cost = 1440
-		self.beacon_probability = 0.3
+		self.beacon_probability = 0.5
 		self.iol_activated = False
 		self.sacred_shield_interval = 9
 		self.sacred_shield_last_proc = self.sacred_shield_interval - 1
 		self.sacred_shield_duration = 60
-		self.sacred_shield_last_use = self.sacred_shield_duration - 1
+		self.sacred_shield_last_use = -1 * self.sacred_shield_duration - 1
 		self.sacred_shield_mana_cost = 494
 		self.wrath_cd = 180
-		self.wrath_delay = 30
+		self.wrath_delay = 20
 		self.wrath_last_use = self.wrath_delay - self.wrath_cd
 		self.wrath_duration = 20
 		self.wrath_mana_cost = 329
@@ -81,7 +81,13 @@ class Encounter:
 		return random.choices(self.heals_list, weights=self.ratio, k=1)[0]
 
 	def isDivineIlluminationActive(self):
-		return self.div_illu_last_use + self.div_illu_duration >= self.time
+		return self.isBuffActive(self.div_illu_last_use, self.div_illu_duration, self.time)
+	
+	def isBuffActive(self, lastUse, duration, time):
+		return lastUse + duration >= time and lastUse <= time
+
+	def isBuffReady(self, lastUse, delay, cd, time):
+		return lastUse + cd <= time and delay <= time
 
 	def areWeOOM(self, spell):
 		if self.isDivineIlluminationActive():
@@ -114,24 +120,27 @@ class Encounter:
 			self.limit_reached = True
 
 	def popCooldowns(self):
-		if (self.favor_last_use + self.favor_cd) <= self.time and self.time > self.favor_delay:
+		if self.isBuffReady(self.favor_last_use, self.favor_cd, self.favor_delay, self.time):
 			self.favor = 1
 			self.removeMana(self.favor_mana_cost)
 
-		if (self.div_illu_last_use + self.div_illu_cd) <= self.time and self.time > self.div_illu_delay:
+		if self.isBuffReady(self.div_illu_last_use, self.div_illu_cd, self.div_illu_delay, self.time):
 			self.div_illu_last_use = self.time
 
-		if (self.beacon_last_use + self.beacon_duration) <= self.time:
+		if self.isBuffReady(self.divine_plea_last_use, self.divine_plea_cd, self.divine_plea_delay, self.time):
+			self.divine_plea_last_use = self.time
+
+		if self.isBuffReady(self.wrath_last_use, self.wrath_cd, self.wrath_delay, self.time):
+			self.wrath_last_use = self.time
+			self.removeMana(self.wrath_mana_cost)
+
+		if not self.isBuffActive(self.beacon_last_use, self.beacon_duration, self.time):
 			self.beacon_last_use = self.time
 			self.removeMana(self.beacon_mana_cost)
 
-		if (self.sacred_shield_last_use + self.sacred_shield_duration) <= self.time:
+		if not self.isBuffActive(self.sacred_shield_last_use, self.sacred_shield_duration, self.time):
 			self.sacred_shield_last_use = self.time
 			self.removeMana(self.sacred_shield_mana_cost)
-
-		if (self.wrath_last_use + self.wrath_duration) <= self.time:
-			self.wrath_last_use = self.time
-			self.removeMana(self.wrath_mana_cost)
 
 	def updateDivineFavor(self):
 		if self.favor == 1:
@@ -149,7 +158,7 @@ class Encounter:
 		self.healed += spell.heal(self.favor) * multiplier
 		
 	def consumeMana(self, spell):
-		if (self.div_illu_last_use + self.div_illu_duration) >= self.time:
+		if self.isDivineIlluminationActive():
 			self.removeMana(spell.getBaseManaCost() / 2 - spell.getManaCostReduction())
 		else:
 			self.removeMana(spell.getManaCost())
@@ -165,7 +174,7 @@ class Encounter:
 			self.hl.setExtraCrit(0)
 
 	def activateSacredShield(self, spell):
-		if self.sacred_shield_last_proc + self.sacred_shield_interval <= self.time:
+		if not self.isBuffActive(self.sacred_shield_last_proc, self.sacred_shield_interval, self.time):
 			self.sacred_shield_last_proc = self.time
 			self.fol.setExtraCrit(0.5)
 
@@ -178,17 +187,17 @@ class Encounter:
 	def castSpell(self, spell):
 		self.incrementTime(spell)
 
-		if self.wrath_last_use + self.wrath_duration >= self.time:
+		if self.isBuffActive(self.wrath_last_use, self.wrath_duration, self.time):
 			wrathMultiplier = 1.2
 		else:
 			wrathMultiplier = 1
 
-		if self.divine_plea_last_use + self.divine_plea_duration >= self.time:
+		if self.isBuffActive(self.divine_plea_last_use, self.divine_plea_duration, self.time):
 			pleaMultiplier = 0.5
 		else:
 			pleaMultiplier = 1
 
-		if self.beacon_last_use + self.beacon_duration >= self.time and self.beacon_probability > random.random():
+		if self.isBuffActive(self.beacon_last_use, self.beacon_duration, self.time) and self.beacon_probability > random.random():
 			self.incrementHealed(spell, 2 * wrathMultiplier * pleaMultiplier)
 		else:
 			self.incrementHealed(spell, 1 * wrathMultiplier * pleaMultiplier)
@@ -220,17 +229,17 @@ class Encounter:
 				break
 			self.popCooldowns()
 			spell.updateHaste(self.time, self.grace_effect, self.grace_duration, self.grace_last_use)
-			self.deactivateInfusionOfLight(spell)
 			self.activateSacredShield(spell)
 			self.castSpell(spell)
 			self.returnMana(spell)
 			self.updateDivineFavor()
 			self.updateLightsGrace(spell)
 			self.activateInfusionOfLight(spell)
+			self.deactivateInfusionOfLight(spell)
 			self.deactivateSacredShield(spell)
 			self.addDelay(spell)
 			self.updateManaTick()
-			self.addExtraMana(1000)
+#			self.addExtraMana(1000)
 			self.limitReachedCheck()
 
 class HealType(Enum):
@@ -260,7 +269,7 @@ class Healing:
 		self.healingCoefficient = self.base_cast / 3.5 / 0.53
 
 	def updateHaste(self, time, grace_effect, grace_duration, grace_last_use):
-		if self.healType == HealType.HL and (grace_last_use + grace_duration) >= time:
+		if self.healType == HealType.HL and grace_last_use + grace_duration >= time and grace_last_use <= time:
 			self.cast = (self.base_cast - grace_effect) / ( 1 + self.haste / self.hasteCoefficient)
 		else:
 			self.cast = self.base_cast / (1 + self.haste / self.hasteCoefficient)
@@ -391,7 +400,6 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 
 		# +haste
 		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste + haste_step * num_gems), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
-
 		pool.close()
 		pool.join()
 	np.save("tto_12_gems", a_tto)
@@ -440,13 +448,15 @@ if __name__ == '__main__':
 	limit = 480
 	
 	mana_pool = 21349
-	extra_mana = 4300 * 1.25
+#	extra_mana = 4300 * 1.25
+	extra_mana = 0
 	spell_power = 1475
 	# adding pot/rune as static mp5
 	mp5_raidbuffs = 92 * 1.2 + 91
 	mp5 = 159 + mp5_raidbuffs
 	crit = 0.198639
 	haste = 176 + 378
+#	haste = 0
 
 	healing_step = 19
 	mp5_step = 8
