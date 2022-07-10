@@ -4,7 +4,8 @@ def improvement_calc(arr, steps):
 	return (arr[1,0] - arr[0,0]) / steps / arr[0,0] * 100
 
 def improvement_calc_arr(data, result, steps):
-	for i in range(5):
+	arrayLength = data.shape[0]
+	for i in range(arrayLength):
 		result[i] = improvement_calc(data[i], steps)
 
 def analysis(tto, hld, hps, result_tto, result_hld, result_hps, steps):
@@ -40,10 +41,46 @@ def pretty_printing(tto, hld, hps, result_tto, result_hld, result_hps, steps):
 	print("\n------------------------------------------------------ HPS ----------------------------------------------------\n")
 	pretty_printing_helper(hps, result_hps, steps)
 	print("\n*************************************************** EQ POINTS *************************************************")
-	for i in eq_point_calc(result_hld, result_hps, 19, 8, 16, 16, 16, 10):
+	eq_points_stats = eq_point_calc(result_hld, result_hps, 19, 8, 16, 16, 16, 10)
+	for i in eq_points_stats:
 		print(roundStrN(i, 1) + "\t\t\t", end='')
 	print()
 
+def pretty_printing_libram(tto, hld, hps, result_tto, result_hld, result_hps, steps):
+	print("\n------------------------------------------------------ TTO ----------------------------------------------------\n")
+	pretty_printing_helper_libram(tto, result_tto, steps)
+	print("\n------------------------------------------------------ HLD ----------------------------------------------------\n")
+	pretty_printing_helper_libram(hld, result_hld, steps)
+	print("\n------------------------------------------------------ HPS ----------------------------------------------------\n")
+	pretty_printing_helper_libram(hps, result_hps, steps)
+#	print("\n*************************************************** EQ POINTS *************************************************")
+	
+
+def pretty_printing_helper_libram(arr, result, steps):
+	print("wisdom\t\t\tlight\t\t\t4p T7\t\t\trenewal\t\t\tabsolute truth\t\tmending\t\t\ttolerance\t\tsouls redeemed\t\tlightbringer")
+	wisdom = (arr[0,0,0], arr[0,1,0])
+	light = (arr[1,0,0], arr[1,1,0])
+	fourT7 = (arr[2,0,0], arr[2,1,0])
+	renewal = (arr[3,0,0], arr[3,1,0])
+	loat = (arr[4,0,0], arr[4,1,0])
+	mending = (arr[5,0,0], arr[5,1,0])
+	tolerance = (arr[6,0,0], arr[6,1,0])
+	souls = (arr[7,0,0], arr[7,1,0])
+	lightbringer = (arr[8,0,0], arr[8,1,0])
+
+	print(roundStr(wisdom[0]) + "\t\t\t" + roundStr(light[0]) + "\t\t\t" + roundStr(fourT7[0]) + "\t\t\t" + \
+			 roundStr(renewal[0]) + "\t\t\t" + roundStr(loat[0]) + "\t\t\t" + roundStr(mending[0]) + "\t\t\t" + \
+			 roundStr(tolerance[0]) + "\t\t\t" + roundStr(souls[0]) + "\t\t\t" + roundStr(lightbringer[0]))
+
+	print(roundStr(wisdom[1]) + "\t" + roundStrN(result[0], 3) + "%\t\t" + \
+			 roundStr(light[1]) + "\t" + roundStrN(result[1], 3) + "%\t\t" + \
+			 roundStr(fourT7[1]) + "\t" + roundStrN(result[2], 3) + "%\t\t" + \
+			 roundStr(renewal[1]) + "\t" + roundStrN(result[3], 3) + "%\t\t" + \
+			 roundStr(loat[1]) + "\t" + roundStrN(result[4], 3) + "%\t\t" + \
+			 roundStr(mending[1]) + "\t" + roundStrN(result[5], 3) + "%\t\t" + \
+			 roundStr(tolerance[1]) + "\t" + roundStrN(result[6], 3) + "%\t\t" + \
+			 roundStr(souls[1]) + "\t" + roundStrN(result[7], 3) + "%\t\t" + \
+			 roundStr(lightbringer[1]) + "\t" + roundStrN(result[8], 3) + "%")
 
 def pretty_printing_helper(arr, result, steps):
 	print("increased healing\tincreased mp5\t\tincreased crit\t\tincreased int\t\tincreased haste")
@@ -60,6 +97,7 @@ def pretty_printing_helper(arr, result, steps):
 			 roundStr(crit[1]) + "\t" + roundStrN(result[2], 3) + "%\t\t" + \
 			 roundStr(intellect[1]) + "\t" + roundStrN(result[3], 3) + "%\t\t" + \
 			 roundStr(haste[1]) + "\t" + roundStrN(result[4], 3) + "%")
+
 
 def analysis_libram(arr, steps):
 	print("\nAbsolute Truth\t\tSouls Redeemed\t\tNagrand\t\t\tLightbringer\t\tMending")
@@ -80,31 +118,19 @@ l_hld = np.load("hld_12_gems.npy")
 result_tto = np.zeros([5], float)
 result_hld = np.zeros([5], float)
 result_hps = np.zeros([5], float)
+
 analysis(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, steps)
 
 pretty_printing(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, steps)
-
-"""
-for i in eq_points:
-	print(str(round(i, 1)) + "\t", end='')
-print()
-
-print("\nTTO")
-analysis(l_tto, steps)
-print("\nhealed")
-analysis(l_hld, steps)
-print("\nHPS")
-analysis(l_hps, steps)
 
 steps = 1
 libram_tto = np.load("tto_libram.npy")
 libram_hps = np.load("hps_libram.npy")
 libram_hld = np.load("hld_libram.npy")
-print("\nTTO")
-analysis_libram(libram_tto, steps)
-print("\nhealed")
-analysis_libram(libram_hld, steps)
-print("\nHPS")
-analysis_libram(libram_hps, steps)
+result_libram_tto = np.zeros([9], float)
+result_libram_hld = np.zeros([9], float)
+result_libram_hps = np.zeros([9], float)
 
-"""
+analysis(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, steps)
+
+pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, steps)
