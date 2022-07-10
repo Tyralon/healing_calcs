@@ -11,6 +11,7 @@ class Encounter:
 		self.fol = Healing(785, 879, 1.5, 288, 0, healing + fol_heal, base_crit, haste, 1, HealType.FOL)
 		self.hs = Healing(2401, 2599, 1.5, 741, 0, healing, base_crit + 0.06, haste, 1, HealType.HS)
 		self.hl = Healing(4888, 5444, 2.5, 1193, reduction, healing + hl_heal, base_crit + 0.06, haste, 1, HealType.HL)
+		self.gcd = Healing(0, 0, 1.5, 0, 0, healing, base_crit, haste, 1, HealType.GCD)
 		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
 		self.healed = 0
@@ -56,6 +57,9 @@ class Encounter:
 		self.divine_plea_delay = 60
 		self.divine_plea_last_use = self.divine_plea_delay - self.divine_plea_cd
 		self.divine_plea_duration = 15
+		self.judgement_duration = 20
+		self.judgement_last_use = -1 * self.judgement_duration - 1
+		self.judgement_mana_cost = 206
 		self.delayCoefficient = (1 - activity) / activity
 		self.spellPower = healing
 
@@ -126,20 +130,32 @@ class Encounter:
 		if self.isBuffReady(self.div_illu_last_use, self.div_illu_cd, self.div_illu_delay, self.time):
 			self.div_illu_last_use = self.time
 
-		if self.isBuffReady(self.divine_plea_last_use, self.divine_plea_cd, self.divine_plea_delay, self.time):
-			self.divine_plea_last_use = self.time
-
 		if self.isBuffReady(self.wrath_last_use, self.wrath_cd, self.wrath_delay, self.time):
 			self.wrath_last_use = self.time
 			self.removeMana(self.wrath_mana_cost)
 
+		if self.isBuffReady(self.divine_plea_last_use, self.divine_plea_cd, self.divine_plea_delay, self.time):
+			self.divine_plea_last_use = self.time
+			self.gcd.updateHaste(0, 0, 0, 0)
+			self.incrementTime(self.gcd)
+
 		if not self.isBuffActive(self.beacon_last_use, self.beacon_duration, self.time):
 			self.beacon_last_use = self.time
 			self.removeMana(self.beacon_mana_cost)
+			self.gcd.updateHaste(0, 0, 0, 0)
+			self.incrementTime(self.gcd)
 
 		if not self.isBuffActive(self.sacred_shield_last_use, self.sacred_shield_duration, self.time):
 			self.sacred_shield_last_use = self.time
 			self.removeMana(self.sacred_shield_mana_cost)
+			self.gcd.updateHaste(0, 0, 0, 0)
+			self.incrementTime(self.gcd)
+
+		if not self.isBuffActive(self.judgement_last_use, self.judgement_duration, self.time):
+			self.judgement_last_use = self.time
+			self.removeMana(self.judgement_mana_cost)
+			self.gcd.updateHaste(0, 0, 0, 0)
+			self.incrementTime(self.gcd)
 
 	def updateDivineFavor(self):
 		if self.favor == 1:
@@ -245,6 +261,7 @@ class HealType(Enum):
 	FOL = 0
 	HL = 1
 	HS = 2
+	GCD = 3
 
 class Healing:
 	
