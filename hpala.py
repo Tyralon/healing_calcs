@@ -7,10 +7,10 @@ from enum import Enum
 
 class Encounter:
 
-	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, base_crit, haste):
-		self.fol = Healing(785, 879, 1.5, 288, 0, healing + fol_heal, 0, base_crit, haste, 1, HealType.FOL)
-		self.hs = Healing(2401, 2599, 1.5, 741, 0, healing, 0, base_crit + 0.06, haste, 1, HealType.HS)
-		self.hl = Healing(4888, 5444, 2.5, 1193, reduction, healing + hl_heal, 0, base_crit + 0.06, haste, 1, HealType.HL)
+	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, reduction, mp5, base_crit, haste):
+		self.fol = Healing(785, 879, 1.5, 288, 0, healing + fol_heal, base_crit, haste, 1, HealType.FOL)
+		self.hs = Healing(2401, 2599, 1.5, 741, 0, healing, base_crit + 0.06, haste, 1, HealType.HS)
+		self.hl = Healing(4888, 5444, 2.5, 1193, reduction, healing + hl_heal, base_crit + 0.06, haste, 1, HealType.HL)
 		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
 		self.healed = 0
@@ -19,7 +19,6 @@ class Encounter:
 		self.mana_pool = mana_pool
 		self.max_mana = mana_pool
 		self.extra_mana = extra_mana
-		self.extra_mana_added = 0
 		self.last_tick = 0.0
 		self.activity = activity
 		self.ratio = ratio
@@ -44,7 +43,7 @@ class Encounter:
 		self.beacon_probability = 0.5
 		self.iol_activated = False
 		self.sacred_shield_interval = 9
-		self.sacred_shield_last_proc = self.sacred_shield_interval - 1
+		self.sacred_shield_last_proc = -1 * self.sacred_shield_interval - 1
 		self.sacred_shield_duration = 60
 		self.sacred_shield_last_use = -1 * self.sacred_shield_duration - 1
 		self.sacred_shield_mana_cost = 494
@@ -64,16 +63,16 @@ class Encounter:
 		self.time = 0.0
 		self.healed = 0
 		self.mana_pool = self.max_mana
-		self.extra_mana_added = 0
 		self.last_tick = 0.0
 		self.favor = 0
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
-		self.grace_last_use = self.grace_duration - 1
-		self.beacon_last_use = self.beacon_duration - 1
-		self.sacred_shield_last_proc = self.sacred_shield_interval - 1
-		self.sacred_shield_last_use = self.sacred_shield_duration - 1
+		self.grace_last_use = -1 * self.grace_duration - 1
+		self.beacon_last_use = -1 * self.beacon_duration - 1
+		self.sacred_shield_last_proc = -1 * self.sacred_shield_interval - 1
+		self.sacred_shield_last_use = -1 * self.sacred_shield_duration - 1
 		self.wrath_last_use = self.wrath_delay - self.wrath_cd
+		self.divine_plea_last_use = self.divine_plea_delay - self.divine_plea_cd
 		self.iol_activated = False
 		self.limit_reached = False
 
@@ -249,14 +248,13 @@ class HealType(Enum):
 
 class Healing:
 	
-	def __init__(self, lower, upper, cast, mana, reduction, healing, flat_heal, crit, haste, percent, healType):
+	def __init__(self, lower, upper, cast, mana, reduction, healing, crit, haste, percent, healType):
 		self.lower = lower
 		self.upper = upper
 		self.cast = cast
 		self.mana = mana - reduction
 		self.reduction = reduction
 		self.healing = healing
-		self.flat_heal = flat_heal
 		self.crit = crit
 		self.extraCrit = 0
 		self.haste = haste
@@ -281,10 +279,10 @@ class Healing:
 			iol_factor = 1
 		if random.random() > (1 - self.crit - self.extraCrit - favor):
 			self.critted = True
-			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent * iol_factor * 1.5
+			return (random.randint(self.lower, self.upper) + self.healing * self.healingCoefficient * 1.12) * self.percent * iol_factor * 1.5
 		else:
 			self.critted = False
-			return (random.randint(self.lower, self.upper) + ((self.healing * self.healingCoefficient + self.flat_heal) * 1.12)) * self.percent * iol_factor 
+			return (random.randint(self.lower, self.upper) + self.healing * self.healingCoefficient * 1.12) * self.percent * iol_factor 
 
 	def getCastTime(self):
 		return self.cast
@@ -307,12 +305,12 @@ class Healing:
 	def getHealType(self):
 		return self.healType
 
-def simulation(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste):
+def simulation(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, reduction, mp5, crit, haste):
 	tto = []
 	hld = []
 	over_limit = 0
 
-	encounter_object = Encounter(limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, reduction, mp5, crit, haste)
+	encounter_object = Encounter(limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, reduction, mp5, crit, haste)
 	assert sum(encounter_object.ratio) == 100
 
 	for i in range(runs):
@@ -369,16 +367,16 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 
 	with Pool(6) as pool:
 		# no gems
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste), callback=partial(callback_fn_multi, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, loat, mp5, crit, haste), callback=partial(callback_fn_multi, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +healing
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing + healing_step * num_gems, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing + healing_step * num_gems, fol_heal, hl_heal, loat, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +mp5
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5 + mp5_step * num_gems, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, loat, mp5 + mp5_step * num_gems, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +crit
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit + crit_step * num_gems, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, loat, mp5, crit + crit_step * num_gems, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +int
 		pool.apply_async(simulation, args=(runs,
@@ -390,8 +388,6 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 			healing + int_step * num_gems * 1.21 * holy_guidance,
 			fol_heal,
 			hl_heal,
-			fol_bol,
-			hl_bol,
 			loat,
 			mp5,
 			crit + int_step * num_gems * 1.21 * int_crit_coeff,
@@ -399,7 +395,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 			callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +haste
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, fol_bol, hl_bol, loat, mp5, crit, haste + haste_step * num_gems), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, healing, fol_heal, hl_heal, loat, mp5, crit, haste + haste_step * num_gems), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 		pool.close()
 		pool.join()
 	np.save("tto_12_gems", a_tto)
