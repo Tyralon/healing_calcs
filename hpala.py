@@ -208,10 +208,10 @@ class Encounter:
 		self.time += self.delayCoefficient * spell.getCastTime()
 		#return delay_coeff # * (2 * (1 - random.random()))
 
-	def addExtraMana(self, amount):
-		if self.mana_pool < amount and self.extra_mana_added < self.extra_mana:
-			self.addMana(amount)
-			self.extra_mana_added += amount
+	def addExtraMana(self):
+		if self.mana_pool < self.hl.getBaseManaCost() and self.extra_mana > 0:
+			self.addMana(self.extra_mana)
+			self.extra_mana = 0
 
 	def getTime(self):
 		return self.time
@@ -239,7 +239,7 @@ class Encounter:
 			self.deactivateSacredShield(spell)
 			self.addDelay(spell)
 			self.updateManaTick()
-#			self.addExtraMana(1000)
+			self.addExtraMana()
 			self.limitReachedCheck()
 
 class HealType(Enum):
@@ -405,7 +405,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 	np.save("tto_12_gems", a_tto)
 	np.save("hld_12_gems", a_hld)
 	np.save("hps_12_gems", a_hps)
-	
+"""
 	b_tto = np.zeros([5, steps, 2], float)
 	b_hld = np.zeros([5, steps, 2], float)
 	b_hps = np.zeros([5, steps, 2], float)
@@ -434,7 +434,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, heali
 	np.save("tto_libram", b_tto)
 	np.save("hld_libram", b_hld)
 	np.save("hps_libram", b_hps)
-
+"""
 
 if __name__ == '__main__':
 	# magic numbers
@@ -442,21 +442,19 @@ if __name__ == '__main__':
 	activity = 0.90
 	crit_rating = 1 / 45 / 100
 	
-	# fol r7, hl r9, hl r10, hl r11
+	# fol, hl, hs
 	ratio = (65, 27, 8)
 	# encounter limit in seconds
 	limit = 480
 	
 	mana_pool = 21349
-#	extra_mana = 4300 * 1.25
-	extra_mana = 0
+	extra_mana = 4300 * 1.25
 	spell_power = 1475
 	# adding pot/rune as static mp5
 	mp5_raidbuffs = 92 * 1.2 + 91
 	mp5 = 159 + mp5_raidbuffs
 	crit = 0.198639
 	haste = 176 + 378
-#	haste = 0
 
 	healing_step = 19
 	mp5_step = 8
