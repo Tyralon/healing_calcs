@@ -16,14 +16,13 @@ def analysis(tto, hld, hps, result_tto, result_hld, result_hps, steps):
 def eq_point_helper(hld, hps, step):
 	return (hld + hps) / step
 
-def eq_point_calc(hld, hps, sp_step, mp5_step, crit_step, int_step, haste_step, normalizingFactor):
-	sp_imp = eq_point_helper(hld[0], hps[0], sp_step)
+def eq_point_calc(hld, hps, sp_step, mp5_step, crit_step, int_step, haste_step, referenceValue, normalizingFactor):
 
-	sp_eqpts = eq_point_helper(hld[0], hps[0], sp_step) / sp_imp * normalizingFactor
-	mp5_eqpts = eq_point_helper(hld[1], hps[1], mp5_step) / sp_imp * normalizingFactor
-	crit_eqpts = eq_point_helper(hld[2], hps[2], crit_step) / sp_imp * normalizingFactor
-	int_eqpts = eq_point_helper(hld[3], hps[3], int_step) / sp_imp * normalizingFactor
-	haste_eqpts = eq_point_helper(hld[4], hps[4], haste_step) / sp_imp * normalizingFactor
+	sp_eqpts = eq_point_helper(hld[0], hps[0], sp_step) / referenceValue * normalizingFactor
+	mp5_eqpts = eq_point_helper(hld[1], hps[1], mp5_step) / referenceValue * normalizingFactor
+	crit_eqpts = eq_point_helper(hld[2], hps[2], crit_step) / referenceValue * normalizingFactor
+	int_eqpts = eq_point_helper(hld[3], hps[3], int_step) / referenceValue * normalizingFactor
+	haste_eqpts = eq_point_helper(hld[4], hps[4], haste_step) / referenceValue * normalizingFactor
 
 	return (sp_eqpts, mp5_eqpts, crit_eqpts, int_eqpts, haste_eqpts)
 
@@ -33,29 +32,61 @@ def roundStrN(var, n):
 def roundStr(var):
 	return str(round(var))
 
-def pretty_printing(tto, hld, hps, result_tto, result_hld, result_hps, steps):
-	print("------------------------------------------------------ TTO ----------------------------------------------------\n")
-	pretty_printing_helper(tto, result_tto, steps)
+def pretty_printing(helper_function, tto, hld, hps, result_tto, result_hld, result_hps, steps, headline):
+	print("\n------------------------------------------------------ TTO ----------------------------------------------------\n")
+	print(headline)
+	helper_function(tto, result_tto, steps)
 	print("\n------------------------------------------------------ HLD ----------------------------------------------------\n")
-	pretty_printing_helper(hld, result_hld, steps)
+	print(headline)
+	helper_function(hld, result_hld, steps)
 	print("\n------------------------------------------------------ HPS ----------------------------------------------------\n")
-	pretty_printing_helper(hps, result_hps, steps)
+	print(headline)
+	helper_function(hps, result_hps, steps)
+
+def pretty_printing_regular(tto, hld, hps, result_tto, result_hld, result_hps, steps):
+	headline = "increased spell power\tincreased mp5\t\tincreased crit\t\tincreased int\t\tincreased haste"
+	pretty_printing(pretty_printing_helper, tto, hld, hps, result_tto, result_hld, result_hps, steps, headline)
 	print("\n*************************************************** EQ POINTS *************************************************")
-	eq_points_stats = eq_point_calc(result_hld, result_hps, 19, 8, 16, 16, 16, 10)
+	pretty_printing_eqpts(result_hld, result_hps, 19, 8, 16, 16, 16, eq_point_helper(result_hld[0], result_hps[0], 19), 10)
+
+def pretty_printing_eqpts(hld, hps, sp_step, mp5_step, crit_step, int_step, haste_step, referenceValue, normalizingFactor):
+	eq_points_stats = eq_point_calc(hld, hps, sp_step, mp5_step, crit_step, int_step, haste_step, referenceValue, normalizingFactor)
 	for i in eq_points_stats:
-		print(roundStrN(i, 1) + "\t\t\t", end='')
+		if i >= 100:
+			print(roundStr(i) + "\t\t\t", end='')
+		else:
+			print(roundStrN(i, 1) + "\t\t\t", end='')
 	print()
 
-def pretty_printing_libram(tto, hld, hps, result_tto, result_hld, result_hps, steps):
-	print("\n------------------------------------------------------ TTO ----------------------------------------------------\n")
-	pretty_printing_helper_libram(tto, result_tto, steps)
-	print("\n------------------------------------------------------ HLD ----------------------------------------------------\n")
-	pretty_printing_helper_libram(hld, result_hld, steps)
-	print("\n------------------------------------------------------ HPS ----------------------------------------------------\n")
-	pretty_printing_helper_libram(hps, result_hps, steps)
-#	print("\n*************************************************** EQ POINTS *************************************************")
-	
+def pretty_printing_libram(tto, hld, hps, result_tto, result_hld, result_hps, extra_hld, extra_hps, steps, normalizingFactor):
+	referenceValue = eq_point_helper(extra_hld[0], extra_hps[0], 19)
 
+	headline = "Seal of Wisdom\t\tSeal of Light\t\t4-piece Tier 7\t\tLibram of Renewal\t\tLibram of Absolute Truth"
+	pretty_printing(pretty_printing_helper_libram, tto, hld, hps, result_tto, result_hld, result_hps, steps, headline)
+	print("\n*************************************************** EQ POINTS *************************************************")
+	pretty_printing_eqpts(result_hld[:5], result_hps[:5], 1, 1, 1, 1, 1, referenceValue, normalizingFactor)
+	
+	headline = "Libram of Mending\tLibram of Tolerance\tLibram of Souls Red...\tlightbringer"
+	pretty_printing(pretty_printing_helper_libram, tto[5:], hld[5:], hps[5:], result_tto[5:], result_hld[5:], result_hps[5:], steps, headline)
+	print("\n*************************************************** EQ POINTS *************************************************")
+	pretty_printing_eqpts(result_hld[5:], result_hps[5:], 1, 1, 1, 1, 1, referenceValue, normalizingFactor)
+
+def pretty_printing_helper_libram(arr, result, steps):
+	heal = (arr[0,0,0], arr[0,1,0])
+	mp5 = (arr[1,0,0], arr[1,1,0])
+	crit = (arr[2,0,0], arr[2,1,0])
+	intellect = (arr[3,0,0], arr[3,1,0])
+	haste = (arr[4,0,0], arr[4,1,0])
+
+	print(roundStr(heal[0]) + "\t\t\t" + roundStr(mp5[0]) + "\t\t\t" + roundStr(crit[0]) + "\t\t\t" + roundStr(intellect[0]) + "\t\t\t" + roundStr(haste[0]))
+
+	print(roundStr(heal[1]) + "\t" + roundStrN(result[0], 3) + "%\t\t" + \
+			 roundStr(mp5[1]) + "\t" + roundStrN(result[1], 3) + "%\t\t" + \
+			 roundStr(crit[1]) + "\t" + roundStrN(result[2], 3) + "%\t\t" + \
+			 roundStr(intellect[1]) + "\t" + roundStrN(result[3], 3) + "%\t\t" + \
+			 roundStr(haste[1]) + "\t" + roundStrN(result[4], 3) + "%")
+	
+"""
 def pretty_printing_helper_libram(arr, result, steps):
 	print("wisdom\t\t\tlight\t\t\t4p T7\t\t\trenewal\t\t\tabsolute truth\t\tmending\t\t\ttolerance\t\tsouls redeemed\t\tlightbringer")
 	wisdom = (arr[0,0,0], arr[0,1,0])
@@ -71,7 +102,6 @@ def pretty_printing_helper_libram(arr, result, steps):
 	print(roundStr(wisdom[0]) + "\t\t\t" + roundStr(light[0]) + "\t\t\t" + roundStr(fourT7[0]) + "\t\t\t" + \
 			 roundStr(renewal[0]) + "\t\t\t" + roundStr(loat[0]) + "\t\t\t" + roundStr(mending[0]) + "\t\t\t" + \
 			 roundStr(tolerance[0]) + "\t\t\t" + roundStr(souls[0]) + "\t\t\t" + roundStr(lightbringer[0]))
-
 	print(roundStr(wisdom[1]) + "\t" + roundStrN(result[0], 3) + "%\t\t" + \
 			 roundStr(light[1]) + "\t" + roundStrN(result[1], 3) + "%\t\t" + \
 			 roundStr(fourT7[1]) + "\t" + roundStrN(result[2], 3) + "%\t\t" + \
@@ -81,9 +111,9 @@ def pretty_printing_helper_libram(arr, result, steps):
 			 roundStr(tolerance[1]) + "\t" + roundStrN(result[6], 3) + "%\t\t" + \
 			 roundStr(souls[1]) + "\t" + roundStrN(result[7], 3) + "%\t\t" + \
 			 roundStr(lightbringer[1]) + "\t" + roundStrN(result[8], 3) + "%")
+"""
 
 def pretty_printing_helper(arr, result, steps):
-	print("increased healing\tincreased mp5\t\tincreased crit\t\tincreased int\t\tincreased haste")
 	heal = (arr[0,0,0], arr[0,1,0])
 	mp5 = (arr[1,0,0], arr[1,1,0])
 	crit = (arr[2,0,0], arr[2,1,0])
@@ -121,16 +151,16 @@ result_hps = np.zeros([5], float)
 
 analysis(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, steps)
 
-pretty_printing(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, steps)
+pretty_printing_regular(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, steps)
 
 steps = 1
 libram_tto = np.load("tto_libram.npy")
 libram_hps = np.load("hps_libram.npy")
 libram_hld = np.load("hld_libram.npy")
-result_libram_tto = np.zeros([9], float)
-result_libram_hld = np.zeros([9], float)
-result_libram_hps = np.zeros([9], float)
+result_libram_tto = np.zeros([10], float)
+result_libram_hld = np.zeros([10], float)
+result_libram_hps = np.zeros([10], float)
 
 analysis(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, steps)
 
-pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, steps)
+pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, result_hld, result_hps, steps, 10)

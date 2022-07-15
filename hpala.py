@@ -370,9 +370,9 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell
 	numberOfGems = 12
 	FOL_SP = 0
 	HL_SP = 0
-	HLReduction = 0
+	HLReduction = 34
 	HLReductionPercent = 0
-	overallReduction = 0
+	overallReduction = 0.05
 	overallHealing = 0
 	holyGuidance = 0.2
 	intCritCoefficient = 1 / 200 / 100
@@ -422,10 +422,17 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell
 	np.save("hld_12_gems", a_hld)
 	np.save("hps_12_gems", a_hps)
 
-	b_tto = np.zeros([9, steps, 2], float)
-	b_hld = np.zeros([9, steps, 2], float)
-	b_hps = np.zeros([9, steps, 2], float)
+	b_tto = np.ones([10, steps, 2], float)
+	b_hld = np.ones([10, steps, 2], float)
+	b_hps = np.ones([10, steps, 2], float)
 	
+	FOL_SP = 0
+	HL_SP = 0
+	HLReduction = 0
+	HLReductionPercent = 0
+	overallReduction = 0
+	overallHealing = 0
+
 	with Pool(5) as pool2:
 		# nothing extra
 		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn_multi, n=9, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
@@ -455,7 +462,7 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell
 		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, 89, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=7, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# libram of the lightbringer
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, 47, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=8, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+#		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, 47, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=8, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		# libram of most holy deeds
 #		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=9, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
@@ -485,8 +492,9 @@ if __name__ == '__main__':
 	mp5 = 159 + mp5_raidbuffs
 	crit = 0.198639
 	haste_coeff = 3280
-	haste_raidbuffs = (0.03 + 0.05) * haste_coeff
-	haste = 176 + 0.15 * haste_coeff
+	haste_raidbuffs = 0.03 + 0.05
+	haste_selfbuffs = 0.15
+	haste = 176 + (haste_selfbuffs + haste_raidbuffs) * haste_coeff
 
 	healing_step = 19
 	mp5_step = 8
