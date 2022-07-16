@@ -322,6 +322,85 @@ class Healing:
 	def getHealType(self):
 		return self.healType
 
+class Parameters:
+
+	def __init__(self, iterations, limit, activity, ratio, hasteCoefficient, intCoefficient, critRating, manaPool, spellPower, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep):
+		self.iterations = iterations
+		self.limit = limit
+		self.activity = activity
+		self.ratio = ratio
+		self.hasteCoefficient = hasteCoefficient
+		self.intCoefficient = intCoefficient
+		self.critRating = critRating
+		self.manaPool = manaPool
+		self.spellPower = spellPower
+		self.mp5 = mp5
+		self.crit = crit
+		self.haste = haste
+		self.spellPowerStep = spellPowerStep
+		self.mp5Step = mp5Step
+		self.critStep = critStep
+		self.intStep = intStep
+		self.hasteStep = hasteStep
+
+	def getIterations(self):
+		return self.iterations
+
+	def getLimit(self):
+		return self.limit
+
+	def getActivity(self):
+		return self.activity
+
+	def getRatio(self):
+		return self.ratio
+
+	def getHasteCoefficient(self):
+		return self.hasteCoefficient
+
+	def getIntCoefficient(self):
+		return self.intCoefficient
+
+	def getCritRating(self):
+		return self.critRating
+
+	def getSpellPower(self):
+		return self.spellPower
+
+class ParametersVariable(Parameters):
+
+	def __init__(self, args, spellPower=0, mp5=0, crit=0, haste=0, extraMana=0, FOLHeal=0, FOLHealPercent=0, HLMana=0, HLManaPercent=0, HLHeal=0, HLCrit=0, HSHeal=0, HSCrit=0, overallHeal=0, overallMana=0):
+		self.iterations = args.iterations
+		self.limit = args.limit
+		self.activity = args.activity
+		self.ratio = args.ratio
+		self.hasteCoefficient = args.hasteCoefficient
+		self.intCoefficient = args.intCoefficient
+		self.critRating = args.critRating
+
+		self.spellPower = spellPower
+		self.spellPower = args.spellPower
+		self.mp5 = mp5
+		self.mp5 = args.mp5
+		self.crit = crit
+		self.crit = args.crit
+		self.haste = haste
+		self.haste = args.haste
+	
+		#self.intellect = args.intellect
+
+		self.extraMana = extraMana
+		self.FOLHeal = FOLHeal
+		self.FOLHealPercent = FOLHealPercent
+		self.HLMana = HLMana
+		self.HLManaPercent = HLManaPercent
+		self.HLHeal = HLHeal
+		self.HLCrit = HLCrit
+		self.HSHeal = HSHeal
+		self.HSCrit = HSCrit
+		self.overallHeal = overallHeal
+		self.overallMana = overallMana
+
 def simulation(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, healing, mp5, base_crit, haste):
 	tto = []
 	hld = []
@@ -366,7 +445,7 @@ def callback_fn_multi(result, n, tto, hld, hps):
 def callback_err(result):
 	print(result)
 
-def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spellPower, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep):
+def gathering_results(params):
 	numberOfGems = 12
 	FOL_SP = 0
 	HL_SP = 0
@@ -384,7 +463,12 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell
 
 	with Pool(6) as pool:
 		# no gems
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn_multi, n=5, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		paramStandard = ParametersVariable(params, HLMana=34, overallMana=0.05)
+		pool.apply_async(simulation, \
+			 args=(paramStandard), \
+			 callback=partial(callback_fn_multi, n=5, tto=a_tto, hld=a_hld, hps=a_hps), \
+			 error_callback=callback_err)
+		#pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn_multi, n=5, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +spell power
 		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower + spellPowerStep * numberOfGems, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
@@ -473,11 +557,15 @@ def gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell
 	np.save("hld_libram", b_hld)
 	np.save("hps_libram", b_hps)
 
+def test_func(args, a="aaa", b="bbb", c="ccc"):
+	print(a,b,c)
+
 if __name__ == '__main__':
 	# magic numbers
-	runs = 10000
+	iterations = 10000
 	activity = 0.90
 	crit_rating = 1 / 45 / 100
+	intCritCoefficient = 1 / 200 / 100
 	
 	# fol, hl, hs
 	ratio = (65, 27, 8)
@@ -496,14 +584,21 @@ if __name__ == '__main__':
 	haste_selfbuffs = 0.15
 	haste = 176 + (haste_selfbuffs + haste_raidbuffs) * haste_coeff
 
-	healing_step = 19
-	mp5_step = 8
-	crit_step = 16 * crit_rating
-	int_step = 16
-	haste_step = 16
+	spellPowerStep = 19
+	mp5Step = 8
+	critStep = 16 * crit_rating
+	intStep = 16
+	hasteStep = 16
 
 
-	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
+	parametersObject = Parameters(iterations, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
+
+	parametersVariableObject = ParametersVariable(parametersObject)
+	print(parametersVariableObject.spellPower)
+
+#	gathering_results(args)
+
+#	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
 
 #	debug_run(limit, activity, ratio, mana_pool + extra_mana, healing, 0, 0, 185, 580, 34, mp5, crit, haste)
 
