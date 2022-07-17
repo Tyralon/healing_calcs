@@ -7,23 +7,23 @@ from enum import Enum
 
 class Encounter:
 
-	def __init__(self, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, healing, mp5, base_crit, haste):
-		self.fol = Healing(785, 879, 1.5, 288, overallReduction * 288, healing + FOL_SP, base_crit, haste, 1 + overallHealing, HealType.FOL)
-		self.hs = Healing(2401, 2599, 1.5, 741, overallReduction * 741, healing, base_crit + 0.06, haste, 1 + overallHealing, HealType.HS)
-		self.hl = Healing(4888, 5444, 2.5, 1193, overallReduction * 1193 + HLReductionPercent * 1193 + HLReduction, healing + HL_SP, base_crit + 0.06, haste, 1 + overallHealing, HealType.HL)
-		self.gcd = Healing(0, 0, 1.5, 0, 0, healing, base_crit, haste, 1, HealType.GCD)
+	def __init__(self, params):
+		self.fol = Healing(785, 879, 1.5, 288, params.overallMana * 288, params.spellPower + params.FOLHeal, params.crit, params.haste, 1 + params.overallHeal + params.FOLHealPercent, HealType.FOL)
+		self.hs = Healing(2401, 2599, 1.5, 741, params.overallMana * 741, params.spellPower + params.HSHeal, params.crit + params.HSCrit + 0.06, params.haste, 1 + params.overallHeal, HealType.HS)
+		self.hl = Healing(4888, 5444, 2.5, 1193, params.overallMana * 1193 + params.HLManaPercent * 1193 + params.HLMana, params.spellPower + params.HLHeal, params.crit + params.HLCrit + 0.06, params.haste, 1 + params.overallHeal, HealType.HL)
+		self.gcd = Healing(0, 0, 1.5, 0, 0, params.spellPower, params.crit, params.haste, 1, HealType.GCD)
 		self.heals_list = [self.fol, self.hl, self.hs]
 		self.time = 0.0
 		self.healed = 0
 		self.mana_tick = 2
-		self.mp2 = mp5 / 5 * 2 + mana_pool * 0.25 / 30 * 0.75
-		self.mana_pool = mana_pool
-		self.max_mana = mana_pool
-		self.extra_mana = extra_mana
+		self.mp2 = params.mp5 / 5 * 2 + params.manaPool * 0.25 / 30 * 0.75
+		self.manaPool = params.manaPool
+		self.max_mana = params.manaPool
+		self.extraMana = params.extraMana
 		self.last_tick = 0.0
-		self.activity = activity
-		self.ratio = ratio
-		self.limit = limit
+		self.activity = params.activity
+		self.ratio = params.ratio
+		self.limit = params.limit
 		self.limit_reached = False
 		self.illu_factor = 0.3
 		self.favor = 0
@@ -60,13 +60,13 @@ class Encounter:
 		self.judgement_duration = 55
 		self.judgement_last_use = -1 * self.judgement_duration - 1
 		self.judgement_mana_cost = 206
-		self.delayCoefficient = (1 - activity) / activity
-		self.spellPower = healing
+		self.delayCoefficient = (1 - params.activity) / params.activity
+		self.spellPower = params.spellPower
 
 	def refresh(self):
 		self.time = 0.0
 		self.healed = 0
-		self.mana_pool = self.max_mana
+		self.manaPool = self.max_mana
 		self.last_tick = 0.0
 		self.favor = 0
 		self.favor_last_use = self.favor_delay - self.favor_cd
@@ -98,7 +98,7 @@ class Encounter:
 		else:
 			temp_spell_cost = spell.getManaCost()
 
-		return self.mana_pool < temp_spell_cost
+		return self.manaPool < temp_spell_cost
 
 	def updateManaTick(self):
 		while self.last_tick < self.time:
@@ -106,13 +106,13 @@ class Encounter:
 			self.addMana(self.mp2)
 
 	def addMana(self, amount):
-		if self.mana_pool + amount > self.max_mana:
-			self.mana_pool = self.max_mana
+		if self.manaPool + amount > self.max_mana:
+			self.manaPool = self.max_mana
 		else:
-			self.mana_pool += amount
+			self.manaPool += amount
 	
 	def removeMana(self, amount):
-		self.mana_pool -= amount
+		self.manaPool -= amount
 		
 	def returnMana(self, spell):
 		if spell.getCritted():
@@ -224,9 +224,9 @@ class Encounter:
 		#return delay_coeff # * (2 * (1 - random.random()))
 
 	def addExtraMana(self):
-		if self.mana_pool < self.hl.getBaseManaCost() and self.extra_mana > 0:
-			self.addMana(self.extra_mana)
-			self.extra_mana = 0
+		if self.manaPool < self.hl.getBaseManaCost() and self.extraMana > 0:
+			self.addMana(self.extraMana)
+			self.extraMana = 0
 
 	def getTime(self):
 		return self.time
@@ -369,7 +369,7 @@ class Parameters:
 
 class ParametersVariable(Parameters):
 
-	def __init__(self, args, spellPower=0, mp5=0, crit=0, haste=0, extraMana=0, FOLHeal=0, FOLHealPercent=0, HLMana=0, HLManaPercent=0, HLHeal=0, HLCrit=0, HSHeal=0, HSCrit=0, overallHeal=0, overallMana=0):
+	def __init__(self, args, manaPool=0, spellPower=0, mp5=0, crit=0, haste=0, extraMana=0, FOLHeal=0, FOLHealPercent=0, HLMana=0, HLManaPercent=0, HLHeal=0, HLCrit=0, HSHeal=0, HSCrit=0, overallHeal=0, overallMana=0):
 		self.iterations = args.iterations
 		self.limit = args.limit
 		self.activity = args.activity
@@ -378,14 +378,11 @@ class ParametersVariable(Parameters):
 		self.intCoefficient = args.intCoefficient
 		self.critRating = args.critRating
 
-		self.spellPower = spellPower
-		self.spellPower = args.spellPower
-		self.mp5 = mp5
-		self.mp5 = args.mp5
-		self.crit = crit
-		self.crit = args.crit
-		self.haste = haste
-		self.haste = args.haste
+		self.manaPool = args.manaPool + manaPool
+		self.spellPower = args.spellPower + spellPower
+		self.mp5 = args.mp5 + mp5
+		self.crit = args.crit + crit
+		self.haste = args.haste + haste
 	
 		#self.intellect = args.intellect
 
@@ -401,27 +398,28 @@ class ParametersVariable(Parameters):
 		self.overallHeal = overallHeal
 		self.overallMana = overallMana
 
-def simulation(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, healing, mp5, base_crit, haste):
+def simulation(params):
 	tto = []
 	hld = []
 	over_limit = 0
 
-	encounter_object = Encounter(limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, healing, mp5, base_crit, haste)
-	assert sum(encounter_object.ratio) == 100
+	encounterObject = Encounter(params)
+	#encounter_object = Encounter(limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, healing, mp5, base_crit, haste)
+	assert sum(encounterObject.ratio) == 100
 
-	for i in range(runs):
-		encounter_object.refresh()
-		encounter_object.runEncounter()
-		tto.append(encounter_object.getTime())
-		hld.append(encounter_object.getHealed())
-		if encounter_object.getLimitReached():
+	for i in range(params.iterations):
+		encounterObject.refresh()
+		encounterObject.runEncounter()
+		tto.append(encounterObject.getTime())
+		hld.append(encounterObject.getHealed())
+		if encounterObject.getLimitReached():
 			over_limit += 1
 	
-	tto_median = statistics.median(tto)
-	hld_median = statistics.median(hld)
-	hps_median = hld_median / tto_median
+	ttoMedian = statistics.median(tto)
+	hldMedian = statistics.median(hld)
+	hpsMedian = hldMedian / ttoMedian
 
-	return [tto_median, hld_median, hps_median, over_limit / runs]
+	return [ttoMedian, hldMedian, hpsMedian, over_limit / params.iterations]
 	
 
 def callback_fn(result, n, i, tto, hld, hps):
@@ -446,15 +444,8 @@ def callback_err(result):
 	print(result)
 
 def gathering_results(params):
-	numberOfGems = 12
-	FOL_SP = 0
-	HL_SP = 0
-	HLReduction = 34
-	HLReductionPercent = 0
-	overallReduction = 0.05
-	overallHealing = 0
+	numberOfSteps = 12
 	holyGuidance = 0.2
-	intCritCoefficient = 1 / 200 / 100
 
 	steps = 2
 	a_tto = np.zeros([5, steps, 2], float)
@@ -465,94 +456,128 @@ def gathering_results(params):
 		# no gems
 		paramStandard = ParametersVariable(params, HLMana=34, overallMana=0.05)
 		pool.apply_async(simulation, \
-			 args=(paramStandard), \
+			 args=(paramStandard,), \
 			 callback=partial(callback_fn_multi, n=5, tto=a_tto, hld=a_hld, hps=a_hps), \
 			 error_callback=callback_err)
-		#pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn_multi, n=5, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
 
 		# +spell power
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower + spellPowerStep * numberOfGems, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		paramSpellPower = ParametersVariable(params, HLMana=34, overallMana=0.05, spellPower=numberOfSteps * params.spellPowerStep)
+		pool.apply_async(simulation, \
+			 args=(paramSpellPower,), \
+			 callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
+			 error_callback=callback_err)
 
 		# +mp5
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5 + mp5Step * numberOfGems, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		paramMp5 = ParametersVariable(params, HLMana=34, overallMana=0.05, mp5=numberOfSteps * params.mp5Step)
+		pool.apply_async(simulation, \
+			 args=(paramMp5,), \
+			 callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
+			 error_callback=callback_err)
 
 		# +crit
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit + critStep * numberOfGems, haste), callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		paramCrit = ParametersVariable(params, HLMana=34, overallMana=0.05, crit=numberOfSteps * params.critStep)
+		pool.apply_async(simulation, \
+			 args=(paramCrit,), \
+			 callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
+			 error_callback=callback_err)
 
 		# +int
-		pool.apply_async(simulation, args=(runs,
-			limit,
-			activity,
-			ratio,
-			mana_pool + intStep * numberOfGems * 1.21 * 15,
-			extra_mana,
-			FOL_SP,
-			HL_SP,
-			HLReduction,
-			HLReductionPercent,
-			overallReduction,
-			overallHealing,
-			spellPower + intStep * numberOfGems * 1.21 * holyGuidance,
-			mp5,
-			crit + intStep * numberOfGems * 1.21 * intCritCoefficient,
-			haste),
-			callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		paramInt = ParametersVariable(params, HLMana=34, overallMana=0.05, \
+					manaPool=numberOfSteps * params.intStep * 1.21 * 15, \
+					spellPower=numberOfSteps * params.intStep * 1.21 * holyGuidance, \
+					crit=numberOfSteps * 1.21 * params.intCoefficient)
+		pool.apply_async(simulation, \
+			 args=(paramInt,), \
+			 callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
+			 error_callback=callback_err)
 
 		# +haste
-		pool.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste + hasteStep * numberOfGems), callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), error_callback=callback_err)
+		paramHaste = ParametersVariable(params, HLMana=34, overallMana=0.05, haste=numberOfSteps * params.hasteStep)
+		pool.apply_async(simulation, \
+			 args=(paramHaste,), \
+			 callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
+			 error_callback=callback_err)
+
 		pool.close()
 		pool.join()
+
 	np.save("tto_12_gems", a_tto)
 	np.save("hld_12_gems", a_hld)
 	np.save("hps_12_gems", a_hps)
 
-	b_tto = np.ones([10, steps, 2], float)
-	b_hld = np.ones([10, steps, 2], float)
-	b_hps = np.ones([10, steps, 2], float)
+	numItems = 10
+	b_tto = np.ones([numItems, steps, 2], float)
+	b_hld = np.ones([numItems, steps, 2], float)
+	b_hps = np.ones([numItems, steps, 2], float)
 	
-	FOL_SP = 0
-	HL_SP = 0
-	HLReduction = 0
-	HLReductionPercent = 0
-	overallReduction = 0
-	overallHealing = 0
-
 	with Pool(5) as pool2:
 		# nothing extra
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn_multi, n=9, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramNothing = ParametersVariable(params)
+		pool2.apply_async(simulation, \
+			 args=(paramNothing,), \
+			 callback=partial(callback_fn_multi, n=numItems, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		# seal of wisdom
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, 0.05, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=0, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramWisdom = ParametersVariable(params, overallMana=0.05)
+		pool2.apply_async(simulation, \
+			 args=(paramWisdom,), \
+			 callback=partial(callback_fn, n=0, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		# seal of light
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, 0.05, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramLight= ParametersVariable(params, overallHeal=0.05)
+		pool2.apply_async(simulation, \
+			 args=(paramLight,), \
+			 callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		# 4 piece Tier 7
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, 0.05, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=2, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramLight= ParametersVariable(params, HLManaPercent=0.05, HSCrit=0.1)
+		pool2.apply_async(simulation, \
+			 args=(paramLight,), \
+			 callback=partial(callback_fn, n=2, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		# libram of renewal
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, 113, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramRenewal= ParametersVariable(params, HLMana=113)
+		pool2.apply_async(simulation, \
+			 args=(paramRenewal,), \
+			 callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		# libram of absolute truth
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, 34, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramTruth= ParametersVariable(params, HLMana=34)
+		pool2.apply_async(simulation, \
+			 args=(paramTruth,), \
+			 callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		# libram of mending
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5 + 28, crit, haste), callback=partial(callback_fn, n=5, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramMending= ParametersVariable(params, mp5=28)
+		pool2.apply_async(simulation, \
+			 args=(paramMending,), \
+			 callback=partial(callback_fn, n=5, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		# libram of tolerance
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, 141, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=6, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramTolerance= ParametersVariable(params, HLHeal=141)
+		pool2.apply_async(simulation, \
+			 args=(paramTolerance,), \
+			 callback=partial(callback_fn, n=6, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		# libram of souls redeemed
-		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, 89, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=7, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
+		paramRedeemed= ParametersVariable(params, FOLHeal=89)
+		pool2.apply_async(simulation, \
+			 args=(paramRedeemed,), \
+			 callback=partial(callback_fn, n=7, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
-		# libram of the lightbringer
-#		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, 47, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=8, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
-
-		# libram of most holy deeds
-#		pool2.apply_async(simulation, args=(runs, limit, activity, ratio, mana_pool, extra_mana, FOL_SP, HL_SP, HLReduction, HLReductionPercent, overallReduction, overallHealing, spellPower, mp5, crit, haste), callback=partial(callback_fn, n=9, i=1, tto=b_tto, hld=b_hld, hps=b_hps), error_callback=callback_err)
 
 		pool2.close()
 		pool2.join()
+
 	np.save("tto_libram", b_tto)
 	np.save("hld_libram", b_hld)
 	np.save("hps_libram", b_hps)
@@ -572,8 +597,8 @@ if __name__ == '__main__':
 	# encounter limit in seconds
 	limit = 480
 	
-	mana_pool = 21349
-	extra_mana = 4300 * 1.25
+	manaPool = 21349
+	extraMana = 4300 * 1.25
 	spell_power = 1475
 	# adding pot/rune as static mp5
 	mp5_raidbuffs = 92 * 1.2 + 91
@@ -591,12 +616,12 @@ if __name__ == '__main__':
 	hasteStep = 16
 
 
-	parametersObject = Parameters(iterations, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
+	parametersObject = Parameters(iterations, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
 
-	parametersVariableObject = ParametersVariable(parametersObject)
-	print(parametersVariableObject.spellPower)
+	#parametersVariableObject = ParametersVariable(parametersObject, spellPower=100)
+	#print(parametersVariableObject.spellPower)
 
-#	gathering_results(args)
+	gathering_results(parametersObject)
 
 #	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
 
