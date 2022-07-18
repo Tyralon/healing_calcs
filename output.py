@@ -13,6 +13,9 @@ def analysis(tto, hld, hps, result_tto, result_hld, result_hps, steps):
 	improvement_calc_arr(hld, result_hld, steps)
 	improvement_calc_arr(hps, result_hps, steps)
 
+def analysis_libram(tto, hld, hps, result_tto, result_hld, result_hps):
+	analysis(tto, hld, hps, result_tto, result_hld, result_hps, 1)
+	
 def eq_point_helper(hld, hps, step):
 	return (hld + hps) / step
 
@@ -61,15 +64,20 @@ def pretty_printing_eqpts(hld, hps, sp_step, mp5_step, crit_step, int_step, hast
 def pretty_printing_libram(tto, hld, hps, result_tto, result_hld, result_hps, extra_hld, extra_hps, steps, normalizingFactor):
 	referenceValue = eq_point_helper(extra_hld[0], extra_hps[0], 19)
 
-	headline = "Seal of Wisdom\t\tSeal of Light\t\t4-piece Tier 7\t\tLibram of Renewal\t\tLibram of Absolute Truth"
+	headline = "Seal of Wisdom\t\tSeal of Light\t\t2-piece Tier 7\t\t4-piece Tier 7\t\tLibram of Renewal"
 	pretty_printing(pretty_printing_helper_libram, tto, hld, hps, result_tto, result_hld, result_hps, steps, headline)
 	print("\n*************************************************** EQ POINTS *************************************************")
 	pretty_printing_eqpts(result_hld[:5], result_hps[:5], 1, 1, 1, 1, 1, referenceValue, normalizingFactor)
 	
-	headline = "Libram of Mending\tLibram of Tolerance\tLibram of Souls Red...\tlightbringer"
-	pretty_printing(pretty_printing_helper_libram, tto[5:], hld[5:], hps[5:], result_tto[5:], result_hld[5:], result_hps[5:], steps, headline)
+	headline = "2-piece Tier 6\t\t4-piece Tier 6\t\tLibram of Absolute...\tLibram of Mending\tLibram of Tolerance\t"
+	pretty_printing(pretty_printing_helper_libram, tto[5:10], hld[5:10], hps[5:10], result_tto[5:10], result_hld[5:10], result_hps[5:10], steps, headline)
 	print("\n*************************************************** EQ POINTS *************************************************")
-	pretty_printing_eqpts(result_hld[5:], result_hps[5:], 1, 1, 1, 1, 1, referenceValue, normalizingFactor)
+	pretty_printing_eqpts(result_hld[5:10], result_hps[5:10], 1, 1, 1, 1, 1, referenceValue, normalizingFactor)
+
+	headline = "Libram of Souls Red...\tLibram of the Lightbringer"
+	pretty_printing(pretty_printing_helper_libram, tto[10:15], hld[10:15], hps[10:15], result_tto[10:15], result_hld[10:15], result_hps[10:15], steps, headline)
+	print("\n*************************************************** EQ POINTS *************************************************")
+	pretty_printing_eqpts(result_hld[10:15], result_hps[10:15], 1, 1, 1, 1, 1, referenceValue, normalizingFactor)
 
 def pretty_printing_helper_libram(arr, result, steps):
 	heal = (arr[0,0,0], arr[0,1,0])
@@ -128,19 +136,6 @@ def pretty_printing_helper(arr, result, steps):
 			 roundStr(intellect[1]) + "\t" + roundStrN(result[3], 3) + "%\t\t" + \
 			 roundStr(haste[1]) + "\t" + roundStrN(result[4], 3) + "%")
 
-
-def analysis_libram(arr, steps):
-	print("\nAbsolute Truth\t\tSouls Redeemed\t\tNagrand\t\t\tLightbringer\t\tMending")
-	heal = ana_helper(arr[0], steps)
-	mp5 = ana_helper(arr[1], steps)
-	crit = ana_helper(arr[2], steps)
-	intellect = ana_helper(arr[3], steps)
-	haste = ana_helper(arr[4], steps)
-
-	print(heal[0] + "\t" + mp5[0] + "\t" + crit[0] + "\t" + intellect[0] + "\t" + haste[0])
-
-	print(heal[1] + "\t" + mp5[1] + "\t" + crit[1] + "\t" + intellect[1] + "\t" + haste[1])
-
 steps = 12
 l_tto = np.load("tto_12_gems.npy")
 l_hps = np.load("hps_12_gems.npy")
@@ -157,10 +152,10 @@ steps = 1
 libram_tto = np.load("tto_libram.npy")
 libram_hps = np.load("hps_libram.npy")
 libram_hld = np.load("hld_libram.npy")
-result_libram_tto = np.zeros([10], float)
-result_libram_hld = np.zeros([10], float)
-result_libram_hps = np.zeros([10], float)
+result_libram_tto = np.ones([15], float)
+result_libram_hld = np.ones([15], float)
+result_libram_hps = np.ones([15], float)
 
-analysis(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, steps)
+analysis_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps)
 
 pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, result_hld, result_hps, steps, 10)
