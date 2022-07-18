@@ -4,6 +4,7 @@ import numpy as np
 from multiprocessing import Pool
 from functools import partial
 from enum import Enum
+from output import analysis, analysis_libram, pretty_printing_regular, pretty_printing_libram
 
 class Encounter:
 
@@ -505,12 +506,12 @@ def gathering_results(params):
 	np.save("hld_12_gems", a_hld)
 	np.save("hps_12_gems", a_hps)
 
-	numItems = 10
+	numItems = 15
 	b_tto = np.ones([numItems, steps, 2], float)
 	b_hld = np.ones([numItems, steps, 2], float)
 	b_hps = np.ones([numItems, steps, 2], float)
 	
-	with Pool(5) as pool2:
+	with Pool(6) as pool2:
 		# nothing extra
 		paramNothing = ParametersVariable(params)
 		pool2.apply_async(simulation, \
@@ -532,48 +533,75 @@ def gathering_results(params):
 			 callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
-		# 4 piece Tier 7
-		paramLight= ParametersVariable(params, HLManaPercent=0.05, HSCrit=0.1)
+		# 2 piece Tier 7
+		param2PT7= ParametersVariable(params, HSCrit=0.1)
 		pool2.apply_async(simulation, \
-			 args=(paramLight,), \
+			 args=(param2PT7,), \
 			 callback=partial(callback_fn, n=2, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
+
+		# 4 piece Tier 7
+		param4PT7= ParametersVariable(params, HLManaPercent=0.05, HSCrit=0.1)
+		pool2.apply_async(simulation, \
+			 args=(param4PT7,), \
+			 callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of renewal
 		paramRenewal= ParametersVariable(params, HLMana=113)
 		pool2.apply_async(simulation, \
 			 args=(paramRenewal,), \
-			 callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
+		
+		# 2 piece Tier 6
+		param2PT6= ParametersVariable(params, FOLHealPercent=0.05)
+		pool2.apply_async(simulation, \
+			 args=(param2PT6,), \
+			 callback=partial(callback_fn, n=5, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
+		
+		# 4 piece Tier 6
+		param4PT6= ParametersVariable(params, FOLHealPercent=0.05, HLCrit=0.05)
+		pool2.apply_async(simulation, \
+			 args=(param4PT6,), \
+			 callback=partial(callback_fn, n=6, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of absolute truth
 		paramTruth= ParametersVariable(params, HLMana=34)
 		pool2.apply_async(simulation, \
 			 args=(paramTruth,), \
-			 callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 callback=partial(callback_fn, n=7, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of mending
 		paramMending= ParametersVariable(params, mp5=28)
 		pool2.apply_async(simulation, \
 			 args=(paramMending,), \
-			 callback=partial(callback_fn, n=5, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 callback=partial(callback_fn, n=8, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of tolerance
 		paramTolerance= ParametersVariable(params, HLHeal=141)
 		pool2.apply_async(simulation, \
 			 args=(paramTolerance,), \
-			 callback=partial(callback_fn, n=6, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 callback=partial(callback_fn, n=9, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of souls redeemed
 		paramRedeemed= ParametersVariable(params, FOLHeal=89)
 		pool2.apply_async(simulation, \
 			 args=(paramRedeemed,), \
-			 callback=partial(callback_fn, n=7, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 callback=partial(callback_fn, n=10, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
+		# libram of the lightbringer
+		paramLightbringer = ParametersVariable(params, HLHeal=42)
+		pool2.apply_async(simulation, \
+			 args=(paramLightbringer,), \
+			 callback=partial(callback_fn, n=11, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 error_callback=callback_err)
 
 		pool2.close()
 		pool2.join()
@@ -587,10 +615,12 @@ def test_func(args, a="aaa", b="bbb", c="ccc"):
 
 if __name__ == '__main__':
 	# magic numbers
-	iterations = 10000
+	iterations = 1000
 	activity = 0.90
 	crit_rating = 1 / 45 / 100
 	intCritCoefficient = 1 / 200 / 100
+	numberOfGems = 12
+	numberOfItems = 12
 	
 	# fol, hl, hs
 	ratio = (65, 27, 8)
@@ -616,12 +646,36 @@ if __name__ == '__main__':
 	hasteStep = 16
 
 
-	parametersObject = Parameters(iterations, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
+#	parametersObject = Parameters(iterations, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
 
 	#parametersVariableObject = ParametersVariable(parametersObject, spellPower=100)
 	#print(parametersVariableObject.spellPower)
 
-	gathering_results(parametersObject)
+#	gathering_results(parametersObject)
+
+	l_tto = np.load("tto_12_gems.npy")
+	l_hps = np.load("hps_12_gems.npy")
+	l_hld = np.load("hld_12_gems.npy")
+	result_tto = np.zeros([5], float)
+	result_hld = np.zeros([5], float)
+	result_hps = np.zeros([5], float)
+
+	analysis(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, numberOfGems)
+
+	pretty_printing_regular(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, steps)
+
+	steps = 1
+	libram_tto = np.load("tto_libram.npy")
+	libram_hps = np.load("hps_libram.npy")
+	libram_hld = np.load("hld_libram.npy")
+	result_libram_tto = np.ones([15], float)
+	result_libram_hld = np.ones([15], float)
+	result_libram_hps = np.ones([15], float)
+
+	analysis_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps)
+
+	pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, result_hld, result_hps, steps, 10)
+                                                               	
 
 #	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
 
