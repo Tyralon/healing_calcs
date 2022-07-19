@@ -325,8 +325,10 @@ class Healing:
 
 class Parameters:
 
-	def __init__(self, iterations, limit, activity, ratio, hasteCoefficient, intCoefficient, critRating, manaPool, spellPower, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep):
+	def __init__(self, iterations, numberOfGems, numberOfItems, limit, activity, ratio, hasteCoefficient, intCoefficient, critRating, manaPool, spellPower, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep):
 		self.iterations = iterations
+		self.numberOfGems = numberOfGems
+		self.numberOfItems = numberOfItems
 		self.limit = limit
 		self.activity = activity
 		self.ratio = ratio
@@ -445,13 +447,12 @@ def callback_err(result):
 	print(result)
 
 def gathering_results(params):
-	numberOfSteps = 12
 	holyGuidance = 0.2
 
 	steps = 2
-	a_tto = np.zeros([5, steps, 2], float)
-	a_hld = np.zeros([5, steps, 2], float)
-	a_hps = np.zeros([5, steps, 2], float)
+	a_tto = np.zeros([5, 2, 2], float)
+	a_hld = np.zeros([5, 2, 2], float)
+	a_hps = np.zeros([5, 2, 2], float)
 
 	with Pool(6) as pool:
 		# no gems
@@ -462,21 +463,21 @@ def gathering_results(params):
 			 error_callback=callback_err)
 
 		# +spell power
-		paramSpellPower = ParametersVariable(params, HLMana=34, overallMana=0.05, spellPower=numberOfSteps * params.spellPowerStep)
+		paramSpellPower = ParametersVariable(params, HLMana=34, overallMana=0.05, spellPower=params.numberOfGems * params.spellPowerStep)
 		pool.apply_async(simulation, \
 			 args=(paramSpellPower,), \
 			 callback=partial(callback_fn, n=0, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
 			 error_callback=callback_err)
 
 		# +mp5
-		paramMp5 = ParametersVariable(params, HLMana=34, overallMana=0.05, mp5=numberOfSteps * params.mp5Step)
+		paramMp5 = ParametersVariable(params, HLMana=34, overallMana=0.05, mp5=params.numberOfGems * params.mp5Step)
 		pool.apply_async(simulation, \
 			 args=(paramMp5,), \
 			 callback=partial(callback_fn, n=1, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
 			 error_callback=callback_err)
 
 		# +crit
-		paramCrit = ParametersVariable(params, HLMana=34, overallMana=0.05, crit=numberOfSteps * params.critStep)
+		paramCrit = ParametersVariable(params, HLMana=34, overallMana=0.05, crit=params.numberOfGems * params.critStep)
 		pool.apply_async(simulation, \
 			 args=(paramCrit,), \
 			 callback=partial(callback_fn, n=2, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
@@ -484,16 +485,16 @@ def gathering_results(params):
 
 		# +int
 		paramInt = ParametersVariable(params, HLMana=34, overallMana=0.05, \
-					manaPool=numberOfSteps * params.intStep * 1.21 * 15, \
-					spellPower=numberOfSteps * params.intStep * 1.21 * holyGuidance, \
-					crit=numberOfSteps * 1.21 * params.intCoefficient)
+					manaPool=params.numberOfGems * params.intStep * 1.21 * 15, \
+					spellPower=params.numberOfGems * params.intStep * 1.21 * holyGuidance, \
+					crit=params.numberOfGems * 1.21 * params.intCoefficient)
 		pool.apply_async(simulation, \
 			 args=(paramInt,), \
 			 callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
 			 error_callback=callback_err)
 
 		# +haste
-		paramHaste = ParametersVariable(params, HLMana=34, overallMana=0.05, haste=numberOfSteps * params.hasteStep)
+		paramHaste = ParametersVariable(params, HLMana=34, overallMana=0.05, haste=params.numberOfGems * params.hasteStep)
 		pool.apply_async(simulation, \
 			 args=(paramHaste,), \
 			 callback=partial(callback_fn, n=4, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
@@ -506,17 +507,16 @@ def gathering_results(params):
 	np.save("hld_12_gems", a_hld)
 	np.save("hps_12_gems", a_hps)
 
-	numItems = 15
-	b_tto = np.ones([numItems, steps, 2], float)
-	b_hld = np.ones([numItems, steps, 2], float)
-	b_hps = np.ones([numItems, steps, 2], float)
+	b_tto = np.ones([params.numberOfItems, 2, 2], float)
+	b_hld = np.ones([params.numberOfItems, 2, 2], float)
+	b_hps = np.ones([params.numberOfItems, 2, 2], float)
 	
 	with Pool(6) as pool2:
 		# nothing extra
 		paramNothing = ParametersVariable(params)
 		pool2.apply_async(simulation, \
 			 args=(paramNothing,), \
-			 callback=partial(callback_fn_multi, n=numItems, tto=b_tto, hld=b_hld, hps=b_hps), \
+			 callback=partial(callback_fn_multi, n=params.numberOfItems, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# seal of wisdom
@@ -645,12 +645,10 @@ if __name__ == '__main__':
 	intStep = 16
 	hasteStep = 16
 
+	normalizingFactor = 10
 
-#	parametersObject = Parameters(iterations, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
 
-	#parametersVariableObject = ParametersVariable(parametersObject, spellPower=100)
-	#print(parametersVariableObject.spellPower)
-
+#	parametersObject = Parameters(iterations, numberOfGems, numberOfItems, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
 #	gathering_results(parametersObject)
 
 	l_tto = np.load("tto_12_gems.npy")
@@ -662,19 +660,18 @@ if __name__ == '__main__':
 
 	analysis(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, numberOfGems)
 
-	pretty_printing_regular(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, steps)
+	pretty_printing_regular(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, normalizingFactor)
 
-	steps = 1
 	libram_tto = np.load("tto_libram.npy")
 	libram_hps = np.load("hps_libram.npy")
 	libram_hld = np.load("hld_libram.npy")
-	result_libram_tto = np.ones([15], float)
-	result_libram_hld = np.ones([15], float)
-	result_libram_hps = np.ones([15], float)
+	result_libram_tto = np.ones([numberOfItems], float)
+	result_libram_hld = np.ones([numberOfItems], float)
+	result_libram_hps = np.ones([numberOfItems], float)
 
 	analysis_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps)
 
-	pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, result_hld, result_hps, steps, 10)
+	pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, result_hld, result_hps, numberOfItems, normalizingFactor)
                                                                	
 
 #	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
