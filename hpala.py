@@ -615,7 +615,7 @@ def test_func(args, a="aaa", b="bbb", c="ccc"):
 
 if __name__ == '__main__':
 	# magic numbers
-	iterations = 1000
+	iterations = 10000
 	activity = 0.90
 	crit_rating = 1 / 45 / 100
 	intCritCoefficient = 1 / 200 / 100
@@ -648,8 +648,8 @@ if __name__ == '__main__':
 	normalizingFactor = 10
 
 
-#	parametersObject = Parameters(iterations, numberOfGems, numberOfItems, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
-#	gathering_results(parametersObject)
+	parametersObject = Parameters(iterations, numberOfGems, numberOfItems, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
+	gathering_results(parametersObject)
 
 	l_tto = np.load("tto_12_gems.npy")
 	l_hps = np.load("hps_12_gems.npy")

@@ -31,7 +31,7 @@ def eq_point_calc(hld, hps, sp_step, mp5_step, crit_step, int_step, haste_step, 
 def eq_point_calc_libram(hld, hps, referenceValue, normalizingFactor):
 	arr = []
 	for i in range(hld.shape[0]):
-		arr += eq_point_calc2(hld[i], hps[i], referenceValue, normalizingFactor)
+		arr.append(eq_point_calc2(hld[i], hps[i], referenceValue, normalizingFactor))
 
 	return arr
 
