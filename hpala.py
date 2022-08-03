@@ -1,3 +1,4 @@
+import sys
 import random
 import statistics
 import numpy as np
@@ -17,7 +18,7 @@ class Encounter:
 		self.time = 0.0
 		self.healed = 0
 		self.mana_tick = 2
-		self.mp2 = params.mp5 / 5 * 2 + params.manaPool * 0.25 / 30 * 0.75
+		self.mp2 = params.mp5 / 5 * 2 + params.manaPool * 0.25 / 60 * 2 * 0.75
 		self.manaPool = params.manaPool
 		self.max_mana = params.manaPool
 		self.extraMana = params.extraMana
@@ -40,14 +41,14 @@ class Encounter:
 		self.grace_duration = 15
 		self.grace_last_use = -1 * self.grace_duration - 1
 		self.beacon_duration = 55
-		self.beacon_last_use = -1 * self.beacon_duration - 1
+		self.beacon_last_use = -10
 		self.beacon_mana_cost = 1440
-		self.beacon_probability = 0.5
+		self.beacon_probability = 0.3
 		self.iol_activated = False
 		self.sacred_shield_interval = 9
 		self.sacred_shield_last_proc = -1 * self.sacred_shield_interval - 1
 		self.sacred_shield_duration = 55
-		self.sacred_shield_last_use = -1 * self.sacred_shield_duration - 1
+		self.sacred_shield_last_use = -8
 		self.sacred_shield_mana_cost = 494
 		self.wrath_cd = 180
 		self.wrath_delay = 20
@@ -55,7 +56,7 @@ class Encounter:
 		self.wrath_duration = 20
 		self.wrath_mana_cost = 329
 		self.divine_plea_cd = 60
-		self.divine_plea_delay = 60
+		self.divine_plea_delay = 99999
 		self.divine_plea_last_use = self.divine_plea_delay - self.divine_plea_cd
 		self.divine_plea_duration = 15
 		self.judgement_duration = 55
@@ -73,9 +74,9 @@ class Encounter:
 		self.favor_last_use = self.favor_delay - self.favor_cd
 		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
 		self.grace_last_use = -1 * self.grace_duration - 1
-		self.beacon_last_use = -1 * self.beacon_duration - 1
+		self.beacon_last_use = -10
 		self.sacred_shield_last_proc = -1 * self.sacred_shield_interval - 1
-		self.sacred_shield_last_use = -1 * self.sacred_shield_duration - 1
+		self.sacred_shield_last_use = -8
 		self.wrath_last_use = self.wrath_delay - self.wrath_cd
 		self.divine_plea_last_use = self.divine_plea_delay - self.divine_plea_cd
 		self.iol_activated = False
@@ -527,70 +528,70 @@ def gathering_results(params):
 			 error_callback=callback_err)
 
 		# seal of light
-		paramLight= ParametersVariable(params, overallHeal=0.05)
+		paramLight = ParametersVariable(params, overallHeal=0.05)
 		pool2.apply_async(simulation, \
 			 args=(paramLight,), \
 			 callback=partial(callback_fn, n=1, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# 2 piece Tier 7
-		param2PT7= ParametersVariable(params, HSCrit=0.1)
+		param2PT7 = ParametersVariable(params, HSCrit=0.1)
 		pool2.apply_async(simulation, \
 			 args=(param2PT7,), \
 			 callback=partial(callback_fn, n=2, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
-		# 4 piece Tier 7
-		param4PT7= ParametersVariable(params, HLManaPercent=0.05, HSCrit=0.1)
+		# 4 piece Tier 7 (without 2 piece)
+		param4PT7 = ParametersVariable(params, HLManaPercent=0.05)
 		pool2.apply_async(simulation, \
 			 args=(param4PT7,), \
 			 callback=partial(callback_fn, n=3, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of renewal
-		paramRenewal= ParametersVariable(params, HLMana=113)
+		paramRenewal = ParametersVariable(params, HLMana=113)
 		pool2.apply_async(simulation, \
 			 args=(paramRenewal,), \
 			 callback=partial(callback_fn, n=4, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 		
 		# 2 piece Tier 6
-		param2PT6= ParametersVariable(params, FOLHealPercent=0.05)
+		param2PT6 = ParametersVariable(params, FOLHealPercent=0.05)
 		pool2.apply_async(simulation, \
 			 args=(param2PT6,), \
 			 callback=partial(callback_fn, n=5, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 		
-		# 4 piece Tier 6
-		param4PT6= ParametersVariable(params, FOLHealPercent=0.05, HLCrit=0.05)
+		# 4 piece Tier 6 (without 2 piece)
+		param4PT6 = ParametersVariable(params, HLCrit=0.05)
 		pool2.apply_async(simulation, \
 			 args=(param4PT6,), \
 			 callback=partial(callback_fn, n=6, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of absolute truth
-		paramTruth= ParametersVariable(params, HLMana=34)
+		paramTruth = ParametersVariable(params, HLMana=34)
 		pool2.apply_async(simulation, \
 			 args=(paramTruth,), \
 			 callback=partial(callback_fn, n=7, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of mending
-		paramMending= ParametersVariable(params, mp5=28)
+		paramMending = ParametersVariable(params, mp5=28)
 		pool2.apply_async(simulation, \
 			 args=(paramMending,), \
 			 callback=partial(callback_fn, n=8, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of tolerance
-		paramTolerance= ParametersVariable(params, HLHeal=141)
+		paramTolerance = ParametersVariable(params, HLHeal=141)
 		pool2.apply_async(simulation, \
 			 args=(paramTolerance,), \
 			 callback=partial(callback_fn, n=9, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
 			 error_callback=callback_err)
 
 		# libram of souls redeemed
-		paramRedeemed= ParametersVariable(params, FOLHeal=89)
+		paramRedeemed = ParametersVariable(params, FOLHeal=89)
 		pool2.apply_async(simulation, \
 			 args=(paramRedeemed,), \
 			 callback=partial(callback_fn, n=10, i=1, tto=b_tto, hld=b_hld, hps=b_hps), \
@@ -623,7 +624,7 @@ if __name__ == '__main__':
 	numberOfItems = 12
 	
 	# fol, hl, hs
-	ratio = (65, 27, 8)
+	ratio = (35, 45, 20)
 	# encounter limit in seconds
 	limit = 480
 	
@@ -647,32 +648,34 @@ if __name__ == '__main__':
 
 	normalizingFactor = 10
 
+	
+	if "sim" in sys.argv:
+		parametersObject = Parameters(iterations, numberOfGems, numberOfItems, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
+		gathering_results(parametersObject)
 
-	parametersObject = Parameters(iterations, numberOfGems, numberOfItems, limit, activity, ratio, haste_coeff, intCritCoefficient, crit_rating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep)
-	gathering_results(parametersObject)
+	elif "print" in sys.argv:
+		print("Spell ratio: FoL " + str(ratio[0]) + "% - HL " + str(ratio[1]) + "% - HS " + str(ratio[2]) + "%")
+		print("Activity level: " + str(round(activity * 100)) + "%")
+		l_tto = np.load("tto_12_gems.npy")
+		l_hps = np.load("hps_12_gems.npy")
+		l_hld = np.load("hld_12_gems.npy")
+		result_tto = np.zeros([5], float)
+		result_hld = np.zeros([5], float)
+		result_hps = np.zeros([5], float)
+		analysis(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, numberOfGems)
+		pretty_printing_regular(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, normalizingFactor)
 
-	l_tto = np.load("tto_12_gems.npy")
-	l_hps = np.load("hps_12_gems.npy")
-	l_hld = np.load("hld_12_gems.npy")
-	result_tto = np.zeros([5], float)
-	result_hld = np.zeros([5], float)
-	result_hps = np.zeros([5], float)
-
-	analysis(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, numberOfGems)
-
-	pretty_printing_regular(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, normalizingFactor)
-
-	libram_tto = np.load("tto_libram.npy")
-	libram_hps = np.load("hps_libram.npy")
-	libram_hld = np.load("hld_libram.npy")
-	result_libram_tto = np.ones([numberOfItems], float)
-	result_libram_hld = np.ones([numberOfItems], float)
-	result_libram_hps = np.ones([numberOfItems], float)
-
-	analysis_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps)
-
-	pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, result_hld, result_hps, numberOfItems, normalizingFactor)
+		libram_tto = np.load("tto_libram.npy")
+		libram_hps = np.load("hps_libram.npy")
+		libram_hld = np.load("hld_libram.npy")
+		result_libram_tto = np.ones([numberOfItems], float)
+		result_libram_hld = np.ones([numberOfItems], float)
+		result_libram_hps = np.ones([numberOfItems], float)
+		analysis_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps)
+		pretty_printing_libram(libram_tto, libram_hld, libram_hps, result_libram_tto, result_libram_hld, result_libram_hps, result_hld, result_hps, numberOfItems, normalizingFactor)
                                                                	
+	else:
+		print("missing arguments.\n\"sim\" for running the simulation and \"print\" to print the results.")
 
 #	gathering_results(runs, activity, ratio, limit, mana_pool, extra_mana, spell_power, mp5, crit, haste, healing_step, mp5_step, crit_step, int_step, haste_step)
 
