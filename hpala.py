@@ -22,8 +22,6 @@ class Encounter:
 		self.divinePlea = params.divinePlea
 		self.judgement = params.judgement
 		self.heals_list = [self.fol, self.hl, self.hs]
-		self.time = 0.0
-		self.healed = 0
 		self.mana_tick = 2
 		self.mp2 = params.mp5 / 5 * 2 + params.manaPool * 0.25 / 60 * 2 * 0.75
 		self.manaPool = params.manaPool
@@ -33,46 +31,17 @@ class Encounter:
 		self.activity = params.activity
 		self.ratio = params.ratio
 		self.limit = params.limit
-		self.limit_reached = False
 		self.illu_factor = 0.3
 		self.favor = 0
-		self.favor_mana_cost = 123
-		self.favor_cd = 120
-		self.favor_delay = 20
-		self.favor_last_use = self.favor_delay - self.favor_cd
-		self.div_illu_duration = 15
-		self.div_illu_cd = 120
-		self.div_illu_delay = 20
-		self.div_illu_last_use = self.div_illu_delay - self.div_illu_cd
 		self.grace_effect = 0.5
 		self.grace_duration = 15
-		self.grace_last_use = -1 * self.grace_duration - 1
-		self.beacon_duration = 55
-		self.beacon_last_use = -10
-		self.beacon_mana_cost = 1440
-		self.beacon_probability = 0.3
-		self.iol_activated = False
-		self.sacred_shield_interval = 9
-		self.sacred_shield_last_proc = -1 * self.sacred_shield_interval - 1
-		self.sacred_shield_duration = 55
-		self.sacred_shield_last_use = -8
-		self.sacred_shield_mana_cost = 494
-		self.wrath_cd = 180
-		self.wrath_delay = 20
-		self.wrath_last_use = self.wrath_delay - self.wrath_cd
-		self.wrath_duration = 20
-		self.wrath_mana_cost = 329
-		self.divine_plea_cd = 60
-		self.divine_plea_delay = 99999
-		self.divine_plea_last_use = self.divine_plea_delay - self.divine_plea_cd
-		self.divine_plea_duration = 15
-		self.judgement_duration = 55
-		self.judgement_last_use = -1 * self.judgement_duration - 1
-		self.judgement_mana_cost = 206
+		self.sacred_shield_last_proc = -1 * self.sacredShield.getInterval() - 1
 		self.delayCoefficient = (1 - params.activity) / params.activity
 		self.spellPower = params.spellPower
+		self.haste = params.haste
+		self.hasteRatingCoefficient = params.hasteRatingCoefficient
 
-	def refresh(self):
+	def reset(self):
 		self.time = 0.0
 		self.healed = 0
 		self.manaPool = self.max_mana
@@ -89,23 +58,26 @@ class Encounter:
 		self.iol_activated = False
 		self.limit_reached = False
 
+	def updateManaCost(self, spell)
+		if self.isBuffActive(self.divineIllumination, self.time):
+			return spell.getBaseManaCost() * (1 - 0.5 - spell.getManaCostReductionPercent()) - spell.getManaCostReduction()
+		else
+			return spell.getBaseManaCost() * (1 - spell.getManaCostReductionPercent()) - spell.getManaCostReduction()
+
+	def updateCastTime(self, spell):
+		if self.healType == SpellType.HL and self.grace_last_use + self.grace_duration >= self.time and self.grace_last_use <= self.time:
+			return = (spell.getBaseCastTime() - self.grace_effect) / ( 1 + self.haste / self.hasteRatingCoefficient)
+		else:
+			return = spell.getBaseCastTime() / ( 1 + self.haste / self.hasteRatingCoefficient)
+
 	def pickSpell(self):
 		return random.choices(self.heals_list, weights=self.ratio, k=1)[0]
 
-	def isDivineIlluminationActive(self):
-		return self.isBuffActive(self.div_illu_last_use, self.div_illu_duration, self.time)
-
 	def isBuffActive(self, spell, time):
-		return spell.getLastUse + spell.getDuration >= time and spell.getLastUse <= time
-
-#	def isBuffActive(self, lastUse, duration, time):
-#		return lastUse + duration >= time and lastUse <= time
+		return spell.getLastUse() + spell.getDuration() >= time and spell.getLastUse() <= time
 
 	def isBuffReady(self, spell, time):
-		return spell.getLastUse + spell.getCooldown <= time and spell.getDelay <= time
-
-#	def isBuffReady(self, lastUse, delay, cd, time):
-#		return lastUse + cd <= time and delay <= time
+		return spell.getLastUse() + spell.getCooldown() <= time and spell.getDelay() <= time
 
 	def areWeOOM(self, spell):
 		if self.isBuffActive(self.divineIllumination, self.time):
@@ -175,7 +147,7 @@ class Encounter:
 	def updateDivineFavor(self):
 		if self.favor == 1:
 			self.favor = 0
-			self.favor_last_use = self.time
+			self.divineFavor.setLastUse(self.time)
 
 	def updateLightsGrace(self, spell):
 		if spell.getSpellType() == SpellType.HL:
@@ -188,7 +160,7 @@ class Encounter:
 		self.healed += spell.heal(self.favor) * multiplier
 		
 	def consumeMana(self, spell):
-		if self.isDivineIlluminationActive():
+		if self.isBuffActive(self.divineIllumination, self.time):
 			self.removeMana(spell.getBaseManaCost() / 2 - spell.getManaCostReduction())
 		else:
 			self.removeMana(spell.getManaCost())
@@ -208,7 +180,9 @@ class Encounter:
 			self.sacred_shield_last_proc = self.time
 			self.fol.setExtraCrit(0.5)
 
-			self.healed += (1000 + self.spellPower * 0.75) * 1.2
+			# talent = 20%
+			# SP scaling = 1.5 / 3.5
+			self.healed += (1000 + self.spellPower * 0.4286) * 1.2
 
 	def deactivateSacredShield(self, spell):
 		if spell.getSpellType() == SpellType.FOL:
@@ -259,6 +233,7 @@ class Encounter:
 				break
 			self.popCooldowns()
 			spell.updateHaste(self.time, self.grace_effect, self.grace_duration, self.grace_last_use)
+			spell.setManaCost(self.updateManaCost(spell
 			self.activateSacredShield(spell)
 			self.castSpell(spell)
 			self.returnMana(spell)
@@ -278,32 +253,54 @@ class SpellType(Enum):
 	HS = 2
 	GCD = 3
 
+
 class Spell:
-	def __init__(self, manaCost, duration, lastUse):
+	def __init__(self, baseManaCost, baseCastTime):
+		self.baseManaCost = baseManaCost
+		self.baseCastTime = baseCastTime
+		self.manaCostReduction = 0
+		self.manaCostReductionPercent = 0
+		self.manaCost = baseManaCost
+		self.castTime = baseCastTime
+	def getBaseManaCost(self): return self.baseManaCost
+	def getBaseCastTime(self): return self.baseCastTime
+	def getManaCost(self): return self.manaCost
+	def getCastTime(self): return self.castTime
+	def setManaCostReduction(self, reduction):
+		self.manaCostReduction = reduction
+	def setManaCostReductionPercent(self, reduction):
+		self.manaCostReductionPercent = reduction
+	def setManaCost(self, manaCost):
 		self.manaCost = manaCost
+	def setCastTime(self, castTime):
+		self.castTime = castTime
+
+
+class Buff(Spell):
+	def __init__(self, manaCost, duration, baseCastTime, lastUse):
+		super().__init__(manaCost,baseCastTime)
 		self.duration = duration
 		self.lastUse = lastUse
-	def getManaCost(self): return self.manaCost
 	def getDuration(self): return self.duration
 	def getLastUse(self): return self.lastUse
 	def setLastUse(self, lastUse):
 		self.lastUse = lastUse
 
-class SpellBeacon(Spell):
-	def __init__(self, manaCost, duration, lastUse, probability):
-		super().__init__(manaCost, duration, lastUse)
+class BuffBeacon(Buff):
+	def __init__(self, manaCost, duration, baseCastTime, lastUse, probability):
+		super().__init__(manaCost, duration, baseCastTime, lastUse)
 		self.probability = probability
 	def getProbability(self): return self.probability
 
-class SpellShield(Spell):
-	def __init__(self, manaCost, duration, lastUse, interval):
-		super().__init__(manaCost, duration, lastUse)
+class BuffShield(Buff):
+	def __init__(self, manaCost, duration, baseCastTime, lastUse, interval):
+		super().__init__(manaCost, duration, baseCastTime, lastUse)
 		self.interval = interval
 	def getInterval(self): return self.interval
 
-class SpellExtended(Spell):
-	def __init__(self, manaCost, duration, cooldown, delay, lastUse):
-		super().__init__(manaCost, duration, lastUse)
+class BuffExtended(Buff):
+	def __init__(self, manaCost, duration, baseCastTime, cooldown, delay, lastUse):
+		super().__init__(manaCost, duration, baseCastTime, lastUse)
 		self.delay = delay
 		self.cooldown = cooldown
 	def getDelay(self): return self.delay
@@ -370,16 +367,16 @@ class Healing:
 
 class Parameters:
 
-	def __init__(self, iterations, numberOfGems, numberOfItems, limit, activity, ratio, hasteCoefficient, intCoefficient, critRating, manaPool, spellPower, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep, divineFavor, divineIllumination, beaconOfLight, sacredShield, avengingWrath, divinePlea, judgement):
+	def __init__(self, iterations, numberOfGems, numberOfItems, limit, activity, ratio, hasteRatingCoefficient, intCritCoefficient, critRatingCoefficient, manaPool, spellPower, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep, divineFavor, divineIllumination, beaconOfLight, sacredShield, avengingWrath, divinePlea, judgement):
 		self.iterations = iterations
 		self.numberOfGems = numberOfGems
 		self.numberOfItems = numberOfItems
 		self.limit = limit
 		self.activity = activity
 		self.ratio = ratio
-		self.hasteCoefficient = hasteCoefficient
-		self.intCoefficient = intCoefficient
-		self.critRating = critRating
+		self.hasteRatingCoefficient = hasteRatingCoefficient
+		self.intCritCoefficient = intCritCoefficient
+		self.critRatingCoefficient = critRatingCoefficient
 		self.manaPool = manaPool
 		self.spellPower = spellPower
 		self.mp5 = mp5
@@ -472,7 +469,7 @@ def simulation(params):
 	assert sum(encounterObject.ratio) == 100
 
 	for i in range(params.iterations):
-		encounterObject.refresh()
+		encounterObject.reset()
 		encounterObject.runEncounter()
 		tto.append(encounterObject.getTime())
 		hld.append(encounterObject.getHealed())
@@ -676,64 +673,74 @@ def test_func(args, a="aaa", b="bbb", c="ccc"):
 
 if __name__ == '__main__':
 	# magic numbers
-	criticalStrikeRating = 1 / 45 / 100
+	critRatingCoefficient = 1 / 45 / 100
 	intCritCoefficient = 1 / 200 / 100
-#	hasteRating = 3280
+	hasteRatingCoefficient = 3280
 #	holyGuidance = 0.2
 #	illumination = 0.3
-#	healCoeff = 0.53
+#	divineIlluminationFactor = 0.5
 
 
 	# Spell(ManaCost, Duration, CD, Delay, LastUse, Interval, Probability)
 
 	divineFavorManaCost = 123
+	divineFavorDuration = 0
 	divineFavorCD = 120
 	divineFavorDelay = 20
+	divineFavorBaseCastTime = 0
 	divineFavorLastUse = divineFavorDelay - divineFavorCD
-	divineFavor = SpellExtended(divineFavorManaCost, 0, divineFavorCD, divineFavorDelay, divineFavorLastUse)
+	divineFavor = BuffExtended(divineFavorManaCost, divineFavorDuration, divineFavorCD, divineFavorDelay, divineFavorBaseCastTime, divineFavorLastUse)
 	
+	divineIlluminationManaCost = 0
 	divineIlluminationDuration = 15
 	divineIlluminationCD = 120
 	divineIlluminationDelay = 20
+	divineIlluminationBaseCastTime = 0
 	divineIlluminationLastUse = divineIlluminationDelay - divineIlluminationCD
-	divineIllumination = SpellExtended(0, divineIlluminationDuration, divineIlluminationCD, divineIlluminationDelay, divineIlluminationLastUse)
+	divineIllumination = BuffExtended(divineIlluminationManaCost, divineIlluminationDuration, divineIlluminationCD, divineIlluminationDelay, divineIlluminationBaseCastTime, divineIlluminationLastUse)
 
 	beaconOfLightManaCost = 1440
 	beaconOfLightDuration = 55
+	beaconOfLightBaseCastTime = 1.5
 	beaconOfLightLastUse = -10
 	beaconOfLightProbability = 0.3
-	beaconOfLight = SpellBeacon(beaconOfLightManaCost, beaconOfLightDuration, beaconOfLightLastUse, beaconOfLightProbability)
+	beaconOfLight = BuffBeacon(beaconOfLightManaCost, beaconOfLightDuration, beaconOfLightBaseCastTime, beaconOfLightLastUse, beaconOfLightProbability)
 
 	sacredShieldManaCost = 494
 	sacredShieldDuration = 55
+	sacredShieldBaseCastTime = 1.5
 	sacredShieldLastUse = -8
 	sacredShieldInterval = 9
 #	sacredShieldLastProc = -1 * sacredShieldInterval - 1
-	sacredShield = SpellShield(sacredShieldManaCost, sacredShieldDuration, sacredShieldLastUse, sacredShieldInterval)
+	sacredShield = BuffShield(sacredShieldManaCost, sacredShieldDuration, sacredShieldBaseCastTime, sacredShieldLastUse, sacredShieldInterval)
 
 	avengingWrathManaCost = 329
 	avengingWrathDuration = 20
 	avengingWrathCD = 180
 	avengingWrathDelay = 20
+	avengingWrathBaseCastTime = 0
 	avengingWrathLastUse = avengingWrathDelay - avengingWrathCD
-	avengingWrath = SpellExtended(avengingWrathManaCost, avengingWrathDuration, avengingWrathCD, avengingWrathDelay, avengingWrathLastUse)
+	avengingWrath = BuffExtended(avengingWrathManaCost, avengingWrathDuration, avengingWrathCD, avengingWrathDelay, avengingWrathBaseCastTime, avengingWrathLastUse)
 
+	divinePleaManaCost = 0
 	divinePleaDuration = 15
 	divinePleaCD = 60
 	divinePleaDelay = 99999
+	divinePleaBaseCastTime = 1.5
 	divinePleaLastUse = divinePleaDelay - divinePleaCD
-	divinePlea = SpellExtended(0, divinePleaDuration, divinePleaCD, divinePleaDelay, divinePleaLastUse)
+	divinePlea = BuffExtended(divinePleaManaCost, divinePleaDuration, divinePleaCD, divinePleaDelay, divinePleaBaseCastTime, divinePleaLastUse)
 
 	judgementManaCost = 206
 	judgementDuration = 55
+	judgementBaseCastTime = 1.5
 	judgementLastUse = -1 * judgementDuration - 1
-	judgement = Spell(judgementManaCost, judgementDuration, judgementLastUse)
+	judgement = Buff(judgementManaCost, judgementDuration, judgementBaseCastTime, judgementLastUse)
 	
 	numberOfItems = 12
 	numberOfGems = 12
 	spellPowerStep = 19
 	mp5Step = 8
-	critStep = 16 * criticalStrikeRating
+	critStep = 16 * critRatingCoefficient
 	intStep = 16
 	hasteStep = 16
 
@@ -751,7 +758,6 @@ if __name__ == '__main__':
 	mp5_raidbuffs = 92 * 1.2 + 91
 	mp5 = 159 + mp5_raidbuffs
 	crit = 0.198639
-	haste_coeff = 3280
 	haste_raidbuffs = 0.03 + 0.05
 	haste_selfbuffs = 0.15
 	haste = 176 + (haste_selfbuffs + haste_raidbuffs) * haste_coeff
@@ -760,7 +766,7 @@ if __name__ == '__main__':
 
 	
 	if "sim" in sys.argv:
-		parametersObject = Parameters(iterations, numberOfGems, numberOfItems, limit, activity, ratio, haste_coeff, intCritCoefficient, criticalStrikeRating, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep, divineFavor, divineIllumination, beaconOfLight, sacredShield, avengingWrath, divinePlea, judgement)
+		parametersObject = Parameters(iterations, numberOfGems, numberOfItems, limit, activity, ratio, hasteRatingCoefficient, intCritCoefficient, critRatingCoefficient, manaPool, spell_power, mp5, crit, haste, spellPowerStep, mp5Step, critStep, intStep, hasteStep, divineFavor, divineIllumination, beaconOfLight, sacredShield, avengingWrath, divinePlea, judgement)
 		gathering_results(parametersObject)
 
 	elif "print" in sys.argv:
