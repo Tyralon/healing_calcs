@@ -39,7 +39,14 @@ class Encounter:
 		self.delayCoefficient = (1 - params.activity) / params.activity
 		self.spellPower = params.spellPower
 		self.haste = params.haste
+		self.crit = params.crit
 		self.hasteRatingCoefficient = params.hasteRatingCoefficient
+
+# all healing modifiers don't seem to need to be transfered through params
+# also, can we transfer params object as a single variable perhaps?
+		self.fol = params.fol
+		self.hl = params.hl
+		self.hs = params.hs
 
 	def reset(self):
 		self.time = 0.0
@@ -57,19 +64,37 @@ class Encounter:
 		self.divinePlea.setLastUse(self.divinePlea.getDelay() - self.divinePlea.getCooldown())
 		self.iol_activated = False
 		self.limit_reached = False
+		self.fol.setHealIncreasePercent(params.overallHeal + params.FOLHealPercent)
+		self.fol.setSpellPowerIncrease(params.FOLHeal)
+		self.fol.setManaCostReductionPercent(params.overallMana)
+		self.hl.setHealIncreasePercent(params.overallHeal)
+		self.hl.setSpellPowerIncrease(params.HLHeal)
+		self.hl.setExtraCrit(params.HLCrit)
+		self.hl.setManaCostReduction(params.HLMana)
+		self.hl.setManaCostReductionPercent(params.overallMana + params.HLManaPercent)
+		self.hs.setHealIncreasePercent(params.overallHeal)
+		self.hs.setSpellPowerIncrease(params.HSHeal)
+		self.hs.setExtraCrit(params.HSCrit)
+		self.hs.setManaCostReductionPercent(params.overallMana)
 
-	def updateManaCost(self, spell)
+
+
+	def updateManaCost(self, spell):
 		if self.isBuffActive(self.divineIllumination, self.time):
 			return spell.getBaseManaCost() * (1 - 0.5 - spell.getManaCostReductionPercent()) - spell.getManaCostReduction()
-		else
+		else:
 			return spell.getBaseManaCost() * (1 - spell.getManaCostReductionPercent()) - spell.getManaCostReduction()
 
 	def updateCastTime(self, spell):
 		if self.healType == SpellType.HL and self.grace_last_use + self.grace_duration >= self.time and self.grace_last_use <= self.time:
-			return = (spell.getBaseCastTime() - self.grace_effect) / ( 1 + self.haste / self.hasteRatingCoefficient)
+			return (spell.getBaseCastTime() - self.grace_effect) / ( 1 + self.haste / self.hasteRatingCoefficient)
 		else:
-			return = spell.getBaseCastTime() / ( 1 + self.haste / self.hasteRatingCoefficient)
+			return spell.getBaseCastTime() / ( 1 + self.haste / self.hasteRatingCoefficient)
 
+	def updateSpell(self, spell):
+		spell.setManaCost(self.updateManaCost(spell))
+		spell.setCastTime(self.updateCastTime(spell))
+	
 	def pickSpell(self):
 		return random.choices(self.heals_list, weights=self.ratio, k=1)[0]
 
@@ -98,9 +123,6 @@ class Encounter:
 		else:
 			self.manaPool += amount
 	
-	def removeMana(self, amount):
-		self.manaPool -= amount
-		
 	def returnMana(self, spell):
 		if spell.getCritted():
 			self.addMana(spell.getBaseManaCost() * self.illu_factor)
@@ -156,17 +178,17 @@ class Encounter:
 	def incrementTime(self, spell):
 		self.time += spell.getCastTime()
 		
-	def incrementHealed(self, spell, multiplier):
-		self.healed += spell.heal(self.favor) * multiplier
+	def addHealing(self, amount):
+		self.healed += amount
+		
+	def removeMana(self, amount):
+		self.manaPool -= amount
 		
 	def consumeMana(self, spell):
-		if self.isBuffActive(self.divineIllumination, self.time):
-			self.removeMana(spell.getBaseManaCost() / 2 - spell.getManaCostReduction())
-		else:
-			self.removeMana(spell.getManaCost())
+		self.removeMana(spell.getManaCost())
 
 	def activateInfusionOfLight(self, spell):
-		if spell.getSpellType() == SpellType.HS and spell.getCritted:
+		if spell.getSpellType() == SpellType.HS and spell.getCritted():
 			self.iol_activated = True
 			self.hl.setExtraCrit(0.2)
 	
@@ -188,9 +210,54 @@ class Encounter:
 		if spell.getSpellType() == SpellType.FOL:
 			self.fol.setExtraCrit(0)
 
+	def castBuff(self, spell):
+		spell.setLastUse(self.time)
+		self.incrementTime(spell)
+		self.consumeMana(spell)
+
+	def castHeal(self, spell):
+		self.incrementTime(spell)
+		
+		heal = (random.randint(spell.getLowerHeal(), spell.getUpperHeal()) + (self.spellPower + spell.getSpellPowerIncrease()) * spell.getSpellPowerCoefficient() * 1.12) * spell.getHealingIncreasePercent() * iol_factor
+
+		# infusion of light
+		# 1. a target is healed with SS
+		# 2. the hot then likely overheals
+		# 3. there is already an IoL HoT up (12s duration)
+		if self.healType == SpellType.FOL:
+			iol_factor = 1 + 0.7 * 0.4 * 0.2
+		else:
+			iol_factor = 1
+		if random.random() > (1 - self.crit - spell.getExtraCrit() - spell.getTempCrit() - self.favor):
+			spell.setCritted(True)
+			critFactor = 1.5
+		else:
+			critFactor = 1
+			spell.setCritted(False)
+	
+		# remember IoL
+		if self.isBuffActive(self.avengingWrath, self.time):
+			wrathMultiplier = 1.2
+		else:
+			wrathMultiplier = 1
+
+		if self.isBuffActive(self.divinePlea, self.time):
+			pleaMultiplier = 0.5
+		else:
+			pleaMultiplier = 1
+
+		if self.isBuffActive(self.beaconOfLight, self.time) and self.beaconOfLight.getProbability() > random.random():
+			beaconMultiplier = 2
+		else:
+			beaconMultiplier = 1
+
+		self.addHealing(heal * wrathMultiplier * pleaMultiplier * beaconMultiplier * critFactor)
+		self.consumeMana(spell)
+
 	def castSpell(self, spell):
 		self.incrementTime(spell)
 
+		# remember IoL
 		if self.isBuffActive(self.avengingWrath, self.time):
 			wrathMultiplier = 1.2
 		else:
@@ -233,7 +300,7 @@ class Encounter:
 				break
 			self.popCooldowns()
 			spell.updateHaste(self.time, self.grace_effect, self.grace_duration, self.grace_last_use)
-			spell.setManaCost(self.updateManaCost(spell
+#			self.updateSpell(spell)
 			self.activateSacredShield(spell)
 			self.castSpell(spell)
 			self.returnMana(spell)
@@ -277,8 +344,8 @@ class Spell:
 
 
 class Buff(Spell):
-	def __init__(self, manaCost, duration, baseCastTime, lastUse):
-		super().__init__(manaCost,baseCastTime)
+	def __init__(self, baseManaCost, baseCastTime, duration, lastUse):
+		super().__init__(baseManaCost, baseCastTime)
 		self.duration = duration
 		self.lastUse = lastUse
 	def getDuration(self): return self.duration
@@ -287,83 +354,53 @@ class Buff(Spell):
 		self.lastUse = lastUse
 
 class BuffBeacon(Buff):
-	def __init__(self, manaCost, duration, baseCastTime, lastUse, probability):
-		super().__init__(manaCost, duration, baseCastTime, lastUse)
+	def __init__(self, baseManaCost, duration, baseCastTime, lastUse, probability):
+		super().__init__(baseManaCost, duration, baseCastTime, lastUse)
 		self.probability = probability
 	def getProbability(self): return self.probability
 
 class BuffShield(Buff):
-	def __init__(self, manaCost, duration, baseCastTime, lastUse, interval):
-		super().__init__(manaCost, duration, baseCastTime, lastUse)
+	def __init__(self, baseManaCost, duration, baseCastTime, lastUse, interval):
+		super().__init__(baseManaCost, duration, baseCastTime, lastUse)
 		self.interval = interval
 	def getInterval(self): return self.interval
 
 class BuffExtended(Buff):
-	def __init__(self, manaCost, duration, baseCastTime, cooldown, delay, lastUse):
-		super().__init__(manaCost, duration, baseCastTime, lastUse)
+	def __init__(self, baseManaCost, duration, baseCastTime, cooldown, delay, lastUse):
+		super().__init__(baseManaCost, duration, baseCastTime, lastUse)
 		self.delay = delay
 		self.cooldown = cooldown
 	def getDelay(self): return self.delay
 	def getCooldown(self): return self.cooldown
 
-class Healing:
+class Heal(Spell):
 	
-	def __init__(self, lower, upper, cast, mana, reduction, healing, crit, haste, percent, healType):
-		self.lower = lower
-		self.upper = upper
-		self.cast = cast
-		self.mana = mana - reduction
-		self.reduction = reduction
-		self.healing = healing
-		self.crit = crit
-		self.extraCrit = 0
-		self.haste = haste
-		self.base_cast = cast
-		self.base_mana = mana
-		self.critted = False
-		self.percent = percent
+	def __init__(self, baseManaCost, baseCastTime, lowerHeal, upperHeal, spellPowerFactor, healType):
+		super().__init__(baseManaCost, baseCastTime)
+		self.lowerHeal = lowerHeal
+		self.upperHeal = upperHeal
+		self.spellPowerCoefficient = baseCastTime / spellPowerFactor
 		self.healType = healType
-		self.hasteCoefficient = 3280
-		self.healingCoefficient = self.base_cast / 3.5 / 0.53
-
-	def updateHaste(self, time, grace_effect, grace_duration, grace_last_use):
-		if self.healType == SpellType.HL and grace_last_use + grace_duration >= time and grace_last_use <= time:
-			self.cast = (self.base_cast - grace_effect) / ( 1 + self.haste / self.hasteCoefficient)
-		else:
-			self.cast = self.base_cast / (1 + self.haste / self.hasteCoefficient)
-	
-	def heal(self, favor):
-		if self.healType == SpellType.FOL:
-			iol_factor = 1 + 0.7 * 0.4
-		else:
-			iol_factor = 1
-		if random.random() > (1 - self.crit - self.extraCrit - favor):
-			self.critted = True
-			return (random.randint(self.lower, self.upper) + self.healing * self.healingCoefficient * 1.12) * self.percent * iol_factor * 1.5
-		else:
-			self.critted = False
-			return (random.randint(self.lower, self.upper) + self.healing * self.healingCoefficient * 1.12) * self.percent * iol_factor 
-
-	def getCastTime(self):
-		return self.cast
-
-	def getManaCost(self):
-		return self.mana
-
-	def getBaseManaCost(self):
-		return self.base_mana
-
-	def getManaCostReduction(self):
-		return self.reduction
-	
-	def getCritted(self):
-		return self.critted
-
-	def setExtraCrit(self, value):
-		self.extraCrit = value
-
-	def getSpellType(self):
-		return self.healType
+		self.extraCrit = 0
+		self.spellPowerIncrease = 0
+		self.healIncreasePercent = 0
+		self.critted = False
+	def getLowerHeal(self): return self.lowerHeal
+	def getUpperHeal(self): return self.upperHeal
+	def setExtraCrit(self, extraCrit):
+		self.extraCrit = extraCrit
+	def getExtraCrit(self): return self.extraCrit
+	def getSpellPowerCoefficient(self): return self.spellPowerCoefficient
+	def setSpellPowerIncrease(self, spellPowerIncrease):
+		self.spellPowerIncrease = spellPowerIncrease 
+	def getSpellPowerIncrease(self): return self.spellPowerIncrease
+	def setHealIncreasePercent(self, healIncreasePercent):
+		self.healIncreasePercent = healIncreasePercent 
+	def getHealIncreasePercent(self): return self.healIncreasePercent
+	def getSpellType(self): return self.healType
+	def setCritted(self, critted):
+		self.critted = critted
+	def getCritted(self): return self.critted
 
 class Parameters:
 
@@ -426,9 +463,9 @@ class ParametersVariable(Parameters):
 		self.limit = args.limit
 		self.activity = args.activity
 		self.ratio = args.ratio
-		self.hasteCoefficient = args.hasteCoefficient
-		self.intCoefficient = args.intCoefficient
-		self.critRating = args.critRating
+		self.hasteRatingCoefficient = args.hasteRatingCoefficient
+		self.intCritCoefficient = args.intCritCoefficient
+		self.critRatingCoefficient = critRatingCoefficient
 
 		self.manaPool = args.manaPool + manaPool
 		self.spellPower = args.spellPower + spellPower
@@ -545,7 +582,7 @@ def gathering_results(params):
 		paramInt = ParametersVariable(params, HLMana=34, overallMana=0.05, \
 					manaPool=params.numberOfGems * params.intStep * 1.21 * 15, \
 					spellPower=params.numberOfGems * params.intStep * 1.21 * holyGuidance, \
-					crit=params.numberOfGems * 1.21 * params.intCoefficient)
+					crit=params.numberOfGems * 1.21 * params.intCritCoefficient)
 		pool.apply_async(simulation, \
 			 args=(paramInt,), \
 			 callback=partial(callback_fn, n=3, i=1, tto=a_tto, hld=a_hld, hps=a_hps), \
@@ -734,8 +771,29 @@ if __name__ == '__main__':
 	judgementDuration = 55
 	judgementBaseCastTime = 1.5
 	judgementLastUse = -1 * judgementDuration - 1
-	judgement = Buff(judgementManaCost, judgementDuration, judgementBaseCastTime, judgementLastUse)
+	judgement = Buff(judgementManaCost, judgementBaseCastTime, judgementDuration, judgementLastUse)
 	
+	# common for all heals
+	spellPowerFactor = 1.5
+
+	flashOfLightManaCost = 288
+	flashOfLightCastTime = 1.5
+	flashOfLightLowerHeal = 785
+	flashOfLightUpperHeal = 879
+	flashOfLight = Heal(flashOfLightManaCost, flashOfLightCastTime, flashOfLightLowerHeal, flashOfLightUpperHeal, spellPowerFactor, SpellType.FOL)
+
+	holyShockManaCost = 741
+	holyShockCastTime = 1.5
+	holyShockLowerHeal = 2401
+	holyShockUpperHeal = 2599
+	holyShock = Heal(holyShockManaCost, holyShockCastTime, holyShockLowerHeal, holyShockUpperHeal, spellPowerFactor, SpellType.HS)
+
+	holyLightManaCost = 1193
+	holyLightCastTime = 2.5
+	holyLightLowerHeal = 4888
+	holyLightUpperHeal = 5444
+	holyLight = Heal(holyLightManaCost, holyLightCastTime, holyLightLowerHeal, holyLightUpperHeal, spellPowerFactor, SpellType.HL)
+
 	numberOfItems = 12
 	numberOfGems = 12
 	spellPowerStep = 19
@@ -760,7 +818,7 @@ if __name__ == '__main__':
 	crit = 0.198639
 	haste_raidbuffs = 0.03 + 0.05
 	haste_selfbuffs = 0.15
-	haste = 176 + (haste_selfbuffs + haste_raidbuffs) * haste_coeff
+	haste = 176 + (haste_selfbuffs + haste_raidbuffs) * hasteRatingCoefficient
 
 	normalizingFactor = 10
 
