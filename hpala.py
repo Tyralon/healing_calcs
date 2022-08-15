@@ -20,6 +20,7 @@ class Encounter:
 		self.grace_effect = 0.5
 		self.grace_duration = 15
 		self.delayCoefficient = (1 - self.v.p.activity) / self.v.p.activity
+		print(f'delayCoefficient:\t{self.delayCoefficient}\n')
 
 	def reset(self):
 		self.time = 0.0
@@ -136,6 +137,7 @@ class Encounter:
 			self.grace_last_use = time
 
 	def incrementTime(self, spell):
+		print(f'incrementTime:\t{round(self.time, 1)} (+{round(spell.getCastTime(), 2)})')
 		self.time += spell.getCastTime()
 		
 	def addHealing(self, amount):
@@ -184,9 +186,11 @@ class Encounter:
 
 	def castHeal(self, spell, spellPower):
 		self.incrementTime(spell)
+		print(f'castHeal(time):\t{round(spell.getCastTime(), 2)}')
 		
-		heal = (random.randint(spell.getLowerHeal(), spell.getUpperHeal()) + (spellPower + spell.getSpellPowerIncrease()) * spell.getSpellPowerCoefficient() * 1.12) * spell.getHealIncreasePercent()
+		heal = (random.randint(spell.getLowerHeal(), spell.getUpperHeal()) + (spellPower + spell.getSpellPowerIncrease()) * spell.getSpellPowerCoefficient() * 1.12) * (1 + spell.getHealIncreasePercent())
 
+		print(f'castHeal(heal):\t{round(heal)}')
 		# infusion of light
 		# 1. a target is healed with SS
 		# 2. the hot then likely overheals
@@ -224,6 +228,7 @@ class Encounter:
 
 	def addDelay(self, spell, delayCoefficient):
 		# should use setter
+		print(f'addDelay:\t{round(self.time, 1)} (+{round(delayCoefficient * spell.getCastTime(), 2)})')
 		self.time += delayCoefficient * spell.getCastTime()
 		#return delay_coeff # * (2 * (1 - random.random()))
 
@@ -236,6 +241,9 @@ class Encounter:
 	def runEncounter(self):
 		while not self.limitReached:
 			spell = self.pickSpell(self.healList, self.v.p.ratio)
+			
+			print(f'Time:\t{round(self.time, 1)}\nHealed:\t{round(self.healed)}\nMana:\t{round(self.manaPool)}\nSpell:\t{spell.getSpellType()}\n')
+
 			self.castBuff(self.v.p.divineIllumination, self.time)
 			self.updateManaCost(spell, self.time)
 			if self.areWeOOM(spell, self.manaPool):
@@ -309,20 +317,20 @@ class Buff(Spell):
 		self.lastUse = lastUse
 
 class BuffBeacon(Buff):
-	def __init__(self, baseManaCost, duration, baseCastTime, lastUse, probability):
-		super().__init__(baseManaCost, duration, baseCastTime, lastUse)
+	def __init__(self, baseManaCost, baseCastTime, duration, lastUse, probability):
+		super().__init__(baseManaCost, baseCastTime, duration, lastUse)
 		self.probability = probability
 	def getProbability(self): return self.probability
 
 class BuffShield(Buff):
-	def __init__(self, baseManaCost, duration, baseCastTime, lastUse, interval):
-		super().__init__(baseManaCost, duration, baseCastTime, lastUse)
+	def __init__(self, baseManaCost, baseCastTime, duration, lastUse, interval):
+		super().__init__(baseManaCost, baseCastTime, duration, lastUse)
 		self.interval = interval
 	def getInterval(self): return self.interval
 
 class BuffExtended(Buff):
-	def __init__(self, baseManaCost, duration, baseCastTime, cooldown, delay, lastUse):
-		super().__init__(baseManaCost, duration, baseCastTime, lastUse)
+	def __init__(self, baseManaCost, baseCastTime, duration, cooldown, delay, lastUse):
+		super().__init__(baseManaCost, baseCastTime, duration, lastUse)
 		self.delay = delay
 		self.cooldown = cooldown
 	def getDelay(self): return self.delay
@@ -678,7 +686,7 @@ if __name__ == '__main__':
 	divineFavorDelay = 20
 	divineFavorBaseCastTime = 0
 	divineFavorLastUse = divineFavorDelay - divineFavorCD
-	divineFavor = BuffExtended(divineFavorManaCost, divineFavorDuration, divineFavorCD, divineFavorDelay, divineFavorBaseCastTime, divineFavorLastUse)
+	divineFavor = BuffExtended(divineFavorManaCost, divineFavorBaseCastTime, divineFavorDuration, divineFavorCD, divineFavorDelay, divineFavorLastUse)
 	
 	divineIlluminationManaCost = 0
 	divineIlluminationDuration = 15
@@ -686,14 +694,14 @@ if __name__ == '__main__':
 	divineIlluminationDelay = 20
 	divineIlluminationBaseCastTime = 0
 	divineIlluminationLastUse = divineIlluminationDelay - divineIlluminationCD
-	divineIllumination = BuffExtended(divineIlluminationManaCost, divineIlluminationDuration, divineIlluminationCD, divineIlluminationDelay, divineIlluminationBaseCastTime, divineIlluminationLastUse)
+	divineIllumination = BuffExtended(divineIlluminationManaCost, divineIlluminationBaseCastTime, divineIlluminationDuration, divineIlluminationCD, divineIlluminationDelay, divineIlluminationLastUse)
 
 	beaconOfLightManaCost = 1440
 	beaconOfLightDuration = 55
 	beaconOfLightBaseCastTime = 1.5
 	beaconOfLightLastUse = -10
 	beaconOfLightProbability = 0.3
-	beaconOfLight = BuffBeacon(beaconOfLightManaCost, beaconOfLightDuration, beaconOfLightBaseCastTime, beaconOfLightLastUse, beaconOfLightProbability)
+	beaconOfLight = BuffBeacon(beaconOfLightManaCost, beaconOfLightBaseCastTime, beaconOfLightDuration, beaconOfLightLastUse, beaconOfLightProbability)
 
 	sacredShieldManaCost = 494
 	sacredShieldDuration = 55
@@ -701,7 +709,7 @@ if __name__ == '__main__':
 	sacredShieldLastUse = -8
 	sacredShieldInterval = 9
 #	sacredShieldLastProc = -1 * sacredShieldInterval - 1
-	sacredShield = BuffShield(sacredShieldManaCost, sacredShieldDuration, sacredShieldBaseCastTime, sacredShieldLastUse, sacredShieldInterval)
+	sacredShield = BuffShield(sacredShieldManaCost, sacredShieldBaseCastTime, sacredShieldDuration, sacredShieldLastUse, sacredShieldInterval)
 
 	avengingWrathManaCost = 329
 	avengingWrathDuration = 20
@@ -709,7 +717,7 @@ if __name__ == '__main__':
 	avengingWrathDelay = 20
 	avengingWrathBaseCastTime = 0
 	avengingWrathLastUse = avengingWrathDelay - avengingWrathCD
-	avengingWrath = BuffExtended(avengingWrathManaCost, avengingWrathDuration, avengingWrathCD, avengingWrathDelay, avengingWrathBaseCastTime, avengingWrathLastUse)
+	avengingWrath = BuffExtended(avengingWrathManaCost, avengingWrathBaseCastTime, avengingWrathDuration, avengingWrathCD, avengingWrathDelay, avengingWrathLastUse)
 
 	divinePleaManaCost = 0
 	divinePleaDuration = 15
@@ -717,7 +725,7 @@ if __name__ == '__main__':
 	divinePleaDelay = 99999
 	divinePleaBaseCastTime = 1.5
 	divinePleaLastUse = divinePleaDelay - divinePleaCD
-	divinePlea = BuffExtended(divinePleaManaCost, divinePleaDuration, divinePleaCD, divinePleaDelay, divinePleaBaseCastTime, divinePleaLastUse)
+	divinePlea = BuffExtended(divinePleaManaCost, divinePleaBaseCastTime, divinePleaDuration, divinePleaCD, divinePleaDelay, divinePleaLastUse)
 
 	judgementManaCost = 206
 	judgementDuration = 55
@@ -755,7 +763,7 @@ if __name__ == '__main__':
 	hasteStep = 16
 
 	iterations = 100
-	activity = 0.8
+	activity = 0.9
 	# fol, hl, hs
 	ratio = (35, 45, 20)
 	# encounter limit in seconds
@@ -802,7 +810,8 @@ if __name__ == '__main__':
 
 	elif "debug" in sys.argv:
 		debug(parametersObject)
-                                                               	
+		#analysis(l_tto, l_hld, l_hps, result_tto, result_hld, result_hps, numberOfGems)
+                                                      	
 	else:
 		print("missing arguments.\n\"sim\" for running the simulation and \"print\" to print the results.")
 
