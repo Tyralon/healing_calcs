@@ -20,7 +20,6 @@ class Encounter:
 		self.grace_effect = 0.5
 		self.grace_duration = 15
 		self.delayCoefficient = (1 - self.v.p.activity) / self.v.p.activity
-		print(f'delayCoefficient:\t{self.delayCoefficient}\n')
 
 	def reset(self):
 		self.time = 0.0
@@ -137,7 +136,6 @@ class Encounter:
 			self.grace_last_use = time
 
 	def incrementTime(self, spell):
-		print(f'incrementTime:\t{round(self.time, 1)} (+{round(spell.getCastTime(), 2)})')
 		self.time += spell.getCastTime()
 		
 	def addHealing(self, amount):
@@ -186,11 +184,9 @@ class Encounter:
 
 	def castHeal(self, spell, spellPower):
 		self.incrementTime(spell)
-		print(f'castHeal(time):\t{round(spell.getCastTime(), 2)}')
 		
 		heal = (random.randint(spell.getLowerHeal(), spell.getUpperHeal()) + (spellPower + spell.getSpellPowerIncrease()) * spell.getSpellPowerCoefficient() * 1.12) * (1 + spell.getHealIncreasePercent())
 
-		print(f'castHeal(heal):\t{round(heal)}')
 		# infusion of light
 		# 1. a target is healed with SS
 		# 2. the hot then likely overheals
@@ -228,7 +224,6 @@ class Encounter:
 
 	def addDelay(self, spell, delayCoefficient):
 		# should use setter
-		print(f'addDelay:\t{round(self.time, 1)} (+{round(delayCoefficient * spell.getCastTime(), 2)})')
 		self.time += delayCoefficient * spell.getCastTime()
 		#return delay_coeff # * (2 * (1 - random.random()))
 
@@ -241,9 +236,6 @@ class Encounter:
 	def runEncounter(self):
 		while not self.limitReached:
 			spell = self.pickSpell(self.healList, self.v.p.ratio)
-			
-			print(f'Time:\t{round(self.time, 1)}\nHealed:\t{round(self.healed)}\nMana:\t{round(self.manaPool)}\nSpell:\t{spell.getSpellType()}\n')
-
 			self.castBuff(self.v.p.divineIllumination, self.time)
 			self.updateManaCost(spell, self.time)
 			if self.areWeOOM(spell, self.manaPool):
@@ -762,8 +754,8 @@ if __name__ == '__main__':
 	intStep = 16
 	hasteStep = 16
 
-	iterations = 100
-	activity = 0.9
+	iterations = 1000
+	activity = 0.99
 	# fol, hl, hs
 	ratio = (35, 45, 20)
 	# encounter limit in seconds
