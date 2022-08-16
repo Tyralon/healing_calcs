@@ -13,8 +13,8 @@ class Encounter:
 		self.v = params
 		self.healList = [self.v.p.flashOfLight, self.v.p.holyLight, self.v.p.holyShock]
 		self.manaTick = 2
-		self.mp2 = self.v.p.mp5 / 5 * 2 + self.v.p.manaPool * 0.25 / 60 * 2 * 0.75
-		self.maxMana = self.v.p.manaPool
+		self.mp2 = self.v.mp5 / 5 * 2 + self.v.manaPool * 0.25 / 60 * 2 * 0.75
+		self.maxMana = self.v.manaPool
 		self.illuminationFactor = 0.3
 		self.divineIlluminationFactor = 0.5
 		self.grace_effect = 0.5
@@ -97,6 +97,7 @@ class Encounter:
 			self.manaPool = maxMana
 		else:
 			self.manaPool += amount
+#			print(f'Add mana:\t{round(amount)}')
 	
 	def returnMana(self, spell, manaPool, maxMana):
 		if spell.getCritted():
@@ -143,6 +144,7 @@ class Encounter:
 		
 	def removeMana(self, amount):
 		self.manaPool -= amount
+#		print(f'Remove mana:\t-{round(amount)}')
 		
 	def consumeMana(self, spell):
 		self.removeMana(spell.getManaCost())
@@ -252,7 +254,8 @@ class Encounter:
 			self.deactivateSacredShield(spell, self.v.p.flashOfLight)
 			self.addDelay(spell, self.delayCoefficient)
 			self.updateManaTick(self.time, self.manaTick, self.mp2, self.manaPool, self.maxMana)
-			self.addExtraMana(self.v.manaPool, self.extraMana)
+			self.addExtraMana(self.manaPool, self.extraMana)
+#			print(f'Mana pool:\t{round(self.manaPool)}\n')
 			self.limitReachedCheck(self.time, self.v.p.limit)
 
 	def getTime(self):
@@ -714,7 +717,7 @@ if __name__ == '__main__':
 	divinePleaManaCost = 0
 	divinePleaDuration = 15
 	divinePleaCD = 60
-	divinePleaDelay = 99999
+	divinePleaDelay = 60
 	divinePleaBaseCastTime = 1.5
 	divinePleaLastUse = divinePleaDelay - divinePleaCD
 	divinePlea = BuffExtended(divinePleaManaCost, divinePleaBaseCastTime, divinePleaDuration, divinePleaCD, divinePleaDelay, divinePleaLastUse)
@@ -754,10 +757,10 @@ if __name__ == '__main__':
 	intStep = 16
 	hasteStep = 16
 
-	iterations = 1000
-	activity = 0.99
+	iterations = 10000
+	activity = 1
 	# fol, hl, hs
-	ratio = (35, 45, 20)
+	ratio = (30, 50, 20)
 	# encounter limit in seconds
 	limit = 480
 	
