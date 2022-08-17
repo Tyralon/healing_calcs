@@ -1,2 +1,2 @@
 # healing_calcs
-wow tbc healing simulator to calculate value of different stats
+wow classic (tbc and wrath) paladin healing simulator to calculate the value of different stats and some items
