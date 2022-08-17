@@ -29,12 +29,12 @@ class Encounter:
 		self.favor = 0
 		self.extraMana = self.v.extraMana
 
-		self.sacred_shield_last_proc = -1 * self.v.p.sacredShield.getInterval() - 1
 		self.v.p.divineFavor.setLastUse(self.v.p.divineFavor.getDelay() - self.v.p.divineFavor.getCooldown())
 		self.v.p.divineIllumination.setLastUse(self.v.p.divineIllumination.getDelay() - self.v.p.divineIllumination.getCooldown())
 		self.grace_last_use = -1 * self.grace_duration - 1
 		self.v.p.beaconOfLight.setLastUse(-10)
 		self.v.p.sacredShield.setLastUse(-8)
+		self.v.p.sacredShield.setLastProc(-1 * self.v.p.sacredShield.getInterval() - 1)
 		self.v.p.avengingWrath.setLastUse(self.v.p.avengingWrath.getDelay() - self.v.p.avengingWrath.getCooldown())
 		self.v.p.divinePlea.setLastUse(self.v.p.divinePlea.getDelay() - self.v.p.divinePlea.getCooldown())
 		self.iol_activated = False
@@ -77,11 +77,16 @@ class Encounter:
 	def isBuffActive(self, spell, time):
 		return spell.getLastUse() + spell.getDuration() >= time and spell.getLastUse() <= time
 
+	def isBuffInactive(self, spell, time):
+		return not self.isBuffActive(spell, time)
+
 	def isBuffReady(self, spell, time):
 		return spell.getLastUse() + spell.getCooldown() <= time and spell.getDelay() <= time
 
 	def areWeOOM(self, spell, manaPool):
 		return manaPool < spell.getManaCost()
+
+	def getManaPool(self): return self.manaPool
 
 	def updateLastTick(self, manaTick):
 		self.lastTick += manaTick
@@ -92,12 +97,10 @@ class Encounter:
 			self.addMana(mp2, manaPool, maxMana)
 
 	def addMana(self, amount, manaPool, maxMana):
-		if manaPool + amount > maxMana:
-			#should use setter
+		if manaPool + amount >= maxMana:
 			self.manaPool = maxMana
 		else:
 			self.manaPool += amount
-#			print(f'Add mana:\t{round(amount)}')
 	
 	def returnMana(self, spell, manaPool, maxMana):
 		if spell.getCritted():
@@ -108,22 +111,17 @@ class Encounter:
 			self.setLimitReached(True)
 
 	def popCooldowns(self, time, haste, hasteRatingCoefficient):
-		self.updateSpell(self.v.p.divineFavor, time, haste, hasteRatingCoefficient)
+
 		self.castBuffCD(self.v.p.divineFavor, time)
 
-		self.updateSpell(self.v.p.avengingWrath, time, haste, hasteRatingCoefficient)
 		self.castBuffCD(self.v.p.avengingWrath, time)
 
-		self.updateSpell(self.v.p.divinePlea, time, haste, hasteRatingCoefficient)
 		self.castBuffCD(self.v.p.divinePlea, time)
 
-		self.updateSpell(self.v.p.beaconOfLight, time, haste, hasteRatingCoefficient)
 		self.castBuff(self.v.p.beaconOfLight, time)
 
-		self.updateSpell(self.v.p.sacredShield, time, haste, hasteRatingCoefficient)
 		self.castBuff(self.v.p.sacredShield, time)
 
-		self.updateSpell(self.v.p.judgement, time, haste, hasteRatingCoefficient)
 		self.castBuff(self.v.p.judgement, time)
 
 	def updateDivineFavor(self, divineFavor, time):
@@ -144,7 +142,6 @@ class Encounter:
 		
 	def removeMana(self, amount):
 		self.manaPool -= amount
-#		print(f'Remove mana:\t-{round(amount)}')
 		
 	def consumeMana(self, spell):
 		self.removeMana(spell.getManaCost())
@@ -160,8 +157,8 @@ class Encounter:
 			holyLight.setExtraCrit(self.v.HLCrit)
 
 	def activateSacredShield(self, spell, flashOfLight, spellPower, time):
-		if self.sacred_shield_last_proc + self.v.p.sacredShield.getInterval() >= time:
-			self.sacred_shield_last_proc = time
+		if self.v.p.sacredShield.getLastProc() + self.v.p.sacredShield.getInterval() >= time:
+			self.v.p.sacredShield.setLastProc(time)
 			flashOfLight.setExtraCrit(0.5)
 
 			# talent = 20%
@@ -173,13 +170,14 @@ class Encounter:
 			flashOfLight.setExtraCrit(0)
 
 	def castBuffCD(self, spell, time):
-		if self.isBuffReady(spell, time):
-			spell.setLastUse(time)
-			self.incrementTime(spell)
-			self.consumeMana(spell)
+		self.castSpell(spell, time, self.isBuffReady)
 
 	def castBuff(self, spell, time):
-		if not self.isBuffActive(spell, time):
+		self.castSpell(spell, time, self.isBuffInactive)
+
+	def castSpell(self, spell, time, condition):
+		if condition(spell, time):
+			self.updateSpell(spell, time, self.v.haste, self.v.p.hasteRatingCoefficient)
 			spell.setLastUse(time)
 			self.incrementTime(spell)
 			self.consumeMana(spell)
@@ -187,14 +185,14 @@ class Encounter:
 	def castHeal(self, spell, spellPower):
 		self.incrementTime(spell)
 		
-		heal = (random.randint(spell.getLowerHeal(), spell.getUpperHeal()) + (spellPower + spell.getSpellPowerIncrease()) * spell.getSpellPowerCoefficient() * 1.12) * (1 + spell.getHealIncreasePercent())
+		heal = (random.randint(spell.getLowerHeal(), spell.getUpperHeal()) + ((spellPower + spell.getSpellPowerIncrease()) * spell.getSpellPowerCoefficient())) * 1.12 * (1 + spell.getHealIncreasePercent())
 
 		# infusion of light
 		# 1. a target is healed with SS
-		# 2. the hot then likely overheals
+		# (2. the hot then likely overheals)
 		# 3. there is already an IoL HoT up (12s duration)
 		if spell.getSpellType == SpellType.FOL:
-			iol_factor = 1 + 0.7 * 0.4 * 0.2
+			iol_factor = 1 + 0.7 * 0.2
 		else:
 			iol_factor = 1
 		if random.random() > (1 - self.v.crit - spell.getExtraCrit() - self.favor):
@@ -216,12 +214,11 @@ class Encounter:
 		else:
 			pleaMultiplier = 1
 
-		if self.isBuffActive(self.v.p.beaconOfLight, self.time) and self.v.p.beaconOfLight.getProbability() > random.random():
-			beaconMultiplier = 2
-		else:
-			beaconMultiplier = 1
+		if self.isBuffActive(self.v.p.beaconOfLight, self.time) and self.v.p.beaconOfLight.getProbability() < random.random():
+			self.addHealing(heal * wrathMultiplier * pleaMultiplier * critFactor * iol_factor)
+			#iol factor should be lowered here
 
-		self.addHealing(heal * wrathMultiplier * pleaMultiplier * beaconMultiplier * critFactor * iol_factor)
+		self.addHealing(heal * wrathMultiplier * pleaMultiplier * critFactor * iol_factor)
 		self.consumeMana(spell)
 
 	def addDelay(self, spell, delayCoefficient):
@@ -255,7 +252,6 @@ class Encounter:
 			self.addDelay(spell, self.delayCoefficient)
 			self.updateManaTick(self.time, self.manaTick, self.mp2, self.manaPool, self.maxMana)
 			self.addExtraMana(self.manaPool, self.extraMana)
-#			print(f'Mana pool:\t{round(self.manaPool)}\n')
 			self.limitReachedCheck(self.time, self.v.p.limit)
 
 	def getTime(self):
@@ -318,10 +314,14 @@ class BuffBeacon(Buff):
 	def getProbability(self): return self.probability
 
 class BuffShield(Buff):
-	def __init__(self, baseManaCost, baseCastTime, duration, lastUse, interval):
+	def __init__(self, baseManaCost, baseCastTime, duration, lastUse, interval, lastProc):
 		super().__init__(baseManaCost, baseCastTime, duration, lastUse)
 		self.interval = interval
+		self.lastProc
 	def getInterval(self): return self.interval
+	def getLastProc(self): return self.lastProc
+	def setLastProc(self, lastProc):
+		self.lastProc = lastProc
 
 class BuffExtended(Buff):
 	def __init__(self, baseManaCost, baseCastTime, duration, cooldown, delay, lastUse):
@@ -446,6 +446,8 @@ class ParametersVariable(Parameters):
 		self.overallHeal = overallHeal
 		self.overallMana = overallMana
 
+	def populateVariable(self,
+
 def simulation(params):
 	tto = []
 	hld = []
@@ -547,9 +549,9 @@ def gathering_results(params):
 		pool.close()
 		pool.join()
 
-	np.save("tto_12_gems", a_tto)
-	np.save("hld_12_gems", a_hld)
-	np.save("hps_12_gems", a_hps)
+	np.save("tto_base", a_tto)
+	np.save("hld_base", a_hld)
+	np.save("hps_base", a_hps)
 
 	b_tto = np.ones([params.numberOfItems, 2, 2], float)
 	b_hld = np.ones([params.numberOfItems, 2, 2], float)
@@ -703,8 +705,8 @@ if __name__ == '__main__':
 	sacredShieldBaseCastTime = 1.5
 	sacredShieldLastUse = -8
 	sacredShieldInterval = 9
-#	sacredShieldLastProc = -1 * sacredShieldInterval - 1
-	sacredShield = BuffShield(sacredShieldManaCost, sacredShieldBaseCastTime, sacredShieldDuration, sacredShieldLastUse, sacredShieldInterval)
+	sacredShieldLastProc = -1 * sacredShieldInterval - 1
+	sacredShield = BuffShield(sacredShieldManaCost, sacredShieldBaseCastTime, sacredShieldDuration, sacredShieldLastUse, sacredShieldInterval, sacredShieldLastProc)
 
 	avengingWrathManaCost = 329
 	avengingWrathDuration = 20
@@ -785,9 +787,9 @@ if __name__ == '__main__':
 	elif "print" in sys.argv:
 		print("Spell ratio: FoL " + str(ratio[0]) + "% - HL " + str(ratio[1]) + "% - HS " + str(ratio[2]) + "%")
 		print("Activity level: " + str(round(activity * 100)) + "%")
-		l_tto = np.load("tto_12_gems.npy")
-		l_hps = np.load("hps_12_gems.npy")
-		l_hld = np.load("hld_12_gems.npy")
+		l_tto = np.load("tto_base.npy")
+		l_hps = np.load("hps_base.npy")
+		l_hld = np.load("hld_base.npy")
 		result_tto = np.zeros([5], float)
 		result_hld = np.zeros([5], float)
 		result_hps = np.zeros([5], float)
